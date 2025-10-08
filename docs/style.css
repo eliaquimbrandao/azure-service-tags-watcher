@@ -37,7 +37,8 @@ body {
 /* Hero Section with Earth Image Background */
 .hero-section {
     position: relative;
-    min-height: 60vh;
+    min-height: 300px;
+    padding: 2rem 1rem;
     display: flex;
     align-items: center;
     justify-content: center;
@@ -235,9 +236,9 @@ body {
 }
 
 .brand-title h1 {
-    font-size: clamp(1.8rem, 4vw, 2.8rem);
+    font-size: clamp(1.5rem, 3.5vw, 2.2rem);
     font-weight: 700;
-    margin-bottom: 0.5rem;
+    margin-bottom: 0.3rem;
     display: flex;
     align-items: center;
     justify-content: center;
@@ -258,8 +259,8 @@ body {
 }
 
 .hero-subtitle {
-    font-size: clamp(1rem, 2vw, 1.2rem);
-    margin-bottom: 1.5rem;
+    font-size: clamp(0.9rem, 1.8vw, 1rem);
+    margin-bottom: 1rem;
     opacity: 0.9;
     font-weight: 300;
 }
@@ -269,8 +270,8 @@ body {
 .hero-stats {
     display: flex;
     justify-content: center;
-    gap: 2rem;
-    margin-bottom: 1.5rem;
+    gap: 1.5rem;
+    margin-bottom: 1rem;
     flex-wrap: wrap;
 }
 
@@ -282,7 +283,7 @@ body {
 }
 
 .stat-number {
-    font-size: 1.6rem;
+    font-size: 1.4rem;
     font-weight: 700;
     color: var(--accent-color);
 }
