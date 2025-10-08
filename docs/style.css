@@ -37,23 +37,25 @@ body {
 /* Hero Section with Earth Image Background */
 .hero-section {
     position: relative;
-    min-height: 100vh;
+    min-height: 60vh;
     display: flex;
     align-items: center;
     justify-content: center;
-    background: 
+    background:
         linear-gradient(135deg, rgba(5, 10, 20, 0.85) 0%, rgba(15, 25, 40, 0.75) 50%, rgba(25, 35, 60, 0.65) 100%),
         url('https://images.unsplash.com/photo-1446776653964-20c1d3a81b06?q=80&w=2000&auto=format&fit=crop') center/cover no-repeat;
     color: white;
     overflow: hidden;
-}.hero-section::before {
+}
+
+.hero-section::before {
     content: '';
     position: absolute;
     top: 0;
     left: 0;
     width: 100%;
     height: 100%;
-    background: 
+    background:
         radial-gradient(circle at 35% 40%, rgba(100, 200, 255, 0.15) 0%, transparent 40%),
         radial-gradient(circle at 70% 60%, rgba(255, 200, 100, 0.1) 0%, transparent 30%);
     z-index: 1;
@@ -233,9 +235,9 @@ body {
 }
 
 .brand-title h1 {
-    font-size: clamp(2.5rem, 5vw, 4rem);
+    font-size: clamp(1.8rem, 4vw, 2.8rem);
     font-weight: 700;
-    margin-bottom: 1rem;
+    margin-bottom: 0.5rem;
     display: flex;
     align-items: center;
     justify-content: center;
@@ -256,8 +258,8 @@ body {
 }
 
 .hero-subtitle {
-    font-size: clamp(1.1rem, 2.5vw, 1.4rem);
-    margin-bottom: 2rem;
+    font-size: clamp(1rem, 2vw, 1.2rem);
+    margin-bottom: 1.5rem;
     opacity: 0.9;
     font-weight: 300;
 }
@@ -267,8 +269,8 @@ body {
 .hero-stats {
     display: flex;
     justify-content: center;
-    gap: 3rem;
-    margin-bottom: 2rem;
+    gap: 2rem;
+    margin-bottom: 1.5rem;
     flex-wrap: wrap;
 }
 
@@ -280,7 +282,7 @@ body {
 }
 
 .stat-number {
-    font-size: 2rem;
+    font-size: 1.6rem;
     font-weight: 700;
     color: var(--accent-color);
 }
