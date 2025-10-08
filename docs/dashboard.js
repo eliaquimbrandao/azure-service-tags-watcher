@@ -193,6 +193,8 @@ class AzureServiceTagsDashboard {
         const changesContainer = document.getElementById('recentChanges');
         const changes = this.changesData.changes || [];
 
+        console.log(`Rendering ${changes.length} changes`);
+
         if (changes.length === 0) {
             changesContainer.innerHTML = `
                 <div class="change-item">
@@ -207,18 +209,49 @@ class AzureServiceTagsDashboard {
             return;
         }
 
-        const changesHtml = changes.slice(0, 20).map(change => {
+        // Limit to first 10 changes for better performance
+        const displayLimit = 10;
+        
+        // Safety check for very large datasets
+        if (changes.length > 5000) {
+            changesContainer.innerHTML = `
+                <div class="change-item">
+                    <div class="change-header">
+                        <div class="change-service">🚀 Initial Data Load Complete</div>
+                    </div>
+                    <div class="change-details">
+                        Successfully loaded ${changes.length.toLocaleString()} Azure service tags in the initial setup.
+                        <br><br>
+                        <strong>Future updates will show incremental changes only.</strong>
+                        <br>
+                        <a href="./data/changes/latest-changes.json" target="_blank" style="color: var(--primary-color);">📄 View complete data file</a>
+                    </div>
+                </div>
+            `;
+            return;
+        }
+        
+        const displayChanges = changes.slice(0, displayLimit);
+        
+        const changesHtml = displayChanges.map(change => {
             return this.renderChangeItem(change);
         }).join('');
 
         changesContainer.innerHTML = changesHtml;
 
-        if (changes.length > 20) {
+        if (changes.length > displayLimit) {
+            const remainingChanges = changes.length - displayLimit;
             changesContainer.innerHTML += `
                 <div class="change-item">
                     <div class="change-details">
-                        ... and ${changes.length - 20} more changes. 
-                        <a href="./data/changes/latest-changes.json" target="_blank">View full data</a>
+                        <strong>📊 Showing ${displayLimit} of ${changes.length.toLocaleString()} total changes</strong>
+                        <br>
+                        ${remainingChanges >= 1000 ? 
+                            `This appears to be an initial data load with ${changes.length.toLocaleString()} service additions.` : 
+                            `... and ${remainingChanges.toLocaleString()} more changes.`
+                        }
+                        <br>
+                        <a href="./data/changes/latest-changes.json" target="_blank" style="color: var(--primary-color);">📄 View complete data file</a>
                     </div>
                 </div>
             `;
