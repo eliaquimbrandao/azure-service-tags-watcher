@@ -41,21 +41,21 @@ body {
     display: flex;
     align-items: center;
     justify-content: center;
-    background:
-        linear-gradient(135deg, rgba(10, 10, 26, 0.8) 0%, rgba(26, 26, 58, 0.7) 50%, rgba(42, 42, 90, 0.6) 100%),
-        url('https://images.unsplash.com/photo-1614730321146-b6fa6a46bcb4?q=80&w=2000&auto=format&fit=crop') center/cover no-repeat;
+    background: 
+        linear-gradient(135deg, rgba(5, 10, 20, 0.85) 0%, rgba(15, 25, 40, 0.75) 50%, rgba(25, 35, 60, 0.65) 100%),
+        url('https://images.unsplash.com/photo-1446776653964-20c1d3a81b06?q=80&w=2000&auto=format&fit=crop') center/cover no-repeat;
     color: white;
     overflow: hidden;
-}
-
-.hero-section::before {
+}.hero-section::before {
     content: '';
     position: absolute;
     top: 0;
     left: 0;
     width: 100%;
     height: 100%;
-    background: radial-gradient(circle at 30% 50%, rgba(0, 150, 255, 0.1) 0%, transparent 50%);
+    background: 
+        radial-gradient(circle at 35% 40%, rgba(100, 200, 255, 0.15) 0%, transparent 40%),
+        radial-gradient(circle at 70% 60%, rgba(255, 200, 100, 0.1) 0%, transparent 30%);
     z-index: 1;
 }
 
