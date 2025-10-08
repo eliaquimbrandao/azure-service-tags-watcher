@@ -193,9 +193,8 @@ class AzureServiceTagsDashboard {
                     const parts = name.split('.');
                     if (parts.length > 1) {
                         const region = parts[parts.length - 1].toLowerCase();
-                        // Filter out non-region suffixes
-                        if (!['global', 'all', 'public', 'private'].includes(region) &&
-                            !region.match(/^\d+$/) && region.length > 2) {
+                        // Only count known Azure regions (filter out service components like 'backend', 'core', etc.)
+                        if (AZURE_REGIONS[region]) {
                             regions.add(region);
                         }
                     }
