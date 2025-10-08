@@ -51,7 +51,7 @@ cd azure-service-tags-watcher
 ## 📁 Project Structure
 
 ```
-azure-service-tags-dashboard/
+azure-service-tags-watcher/
 ├── .github/workflows/
 │   └── update-data.yml          # Weekly automation
 ├── data/

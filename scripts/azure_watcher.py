@@ -31,7 +31,7 @@ logging.basicConfig(
 AZURE_PUBLIC_IP_JSON_URL = "https://www.microsoft.com/en-us/download/confirmation.aspx?id=56519"
 MAX_RETRIES = 3
 RETRY_DELAY = 2
-USER_AGENT = "Azure-Service-Tag-Dashboard/1.0"
+USER_AGENT = "Azure-Service-Tags-Watcher/1.0"
 
 def download_latest_json() -> Dict:
     """Download the latest Azure Service Tags JSON with retry logic."""
@@ -280,7 +280,7 @@ def cleanup_old_files(keep_weeks: int = 12):
 def main():
     """Main execution function."""
     try:
-        logging.info("=== Azure Service Tags Dashboard Update ===")
+        logging.info("=== Azure Service Tags Watcher Update ===")
         
         # Download latest data
         new_data = download_latest_json()
