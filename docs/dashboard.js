@@ -170,19 +170,24 @@ class AzureServiceTagsDashboard {
             return;
         }
 
-        // Sort regions by change count
+        // Sort regions alphabetically (Global first, then alphabetical)
         const sortedRegions = Object.entries(regionalData)
-            .sort(([, a], [, b]) => b - a);
+            .sort(([a], [b]) => {
+                // Put "Global" (empty string) first
+                if (!a && b) return -1;
+                if (a && !b) return 1;
+                if (!a && !b) return 0;
+                // Then sort alphabetically
+                return a.localeCompare(b);
+            });
 
         // Create interactive regional list
         const regionsHtml = sortedRegions.map(([region, count]) => {
             const displayName = region || 'Global';
-            const flagEmoji = this.getRegionFlag(region);
-
+            
             return `
                 <div class="region-item" data-region="${region}" onclick="dashboard.showRegionChanges('${region}', '${displayName}', ${count})">
                     <div class="region-info">
-                        <span class="region-flag">${flagEmoji}</span>
                         <span class="region-name">${displayName}</span>
                     </div>
                     <div class="region-count">
@@ -190,9 +195,7 @@ class AzureServiceTagsDashboard {
                     </div>
                 </div>
             `;
-        }).join('');
-
-        regionalContainer.innerHTML = `
+        }).join('');        regionalContainer.innerHTML = `
             <h3>🗺️ Changes by Region</h3>
             <div class="regions-list">
                 ${regionsHtml}
@@ -201,63 +204,6 @@ class AzureServiceTagsDashboard {
                 💡 Click on a region to see its specific changes
             </div>
         `;
-    }
-
-    getRegionFlag(region) {
-        if (!region) return '🌍';
-        
-        console.log(`Getting flag for region: "${region}"`); // Debug log
-
-        const regionFlags = {
-            // Direct matches first
-            'australiacentral': '🇦🇺', 'australiacentral2': '🇦🇺', 'australiaeast': '🇦🇺', 'australiasoutheast': '🇦🇺',
-            'brazilsouth': '🇧🇷', 'brazilse': '🇧🇷',
-            'canadacentral': '🇨🇦', 'canadaeast': '🇨🇦',
-            'eastasia': '🌏', 'southeastasia': '🌏',
-            'eastus': '🇺🇸', 'eastus2': '🇺🇸', 'westus': '🇺🇸', 'westus2': '🇺🇸', 'westus3': '🇺🇸', 
-            'centralus': '🇺🇸', 'northcentralus': '🇺🇸', 'southcentralus': '🇺🇸',
-            'northeurope': '🇪🇺', 'westeurope': '🇪🇺', 
-            'francecentral': '🇫🇷', 'francesouth': '🇫🇷',
-            'germanywestcentral': '🇩🇪', 'germanynorth': '🇩🇪',
-            'italynorth': '🇮🇹',
-            'japaneast': '🇯🇵', 'japanwest': '🇯🇵',
-            'koreacentral': '🇰🇷', 'koreasouth': '🇰🇷',
-            'norwayeast': '🇳🇴', 'norwaywest': '🇳🇴',
-            'southafricanorth': '🇿🇦', 'southafricawest': '🇿🇦',
-            'switzerlandnorth': '🇨🇭', 'switzerlandwest': '🇨🇭',
-            'uksouth': '🇬🇧', 'ukwest': '🇬🇧',
-            'uaenorth': '🇦🇪', 'uaecentral': '🇦🇪',
-            'indiacentral': '🇮🇳', 'indiasouth': '🇮🇳', 'indiawest': '🇮🇳',
-            'chinaeast': '🇨🇳', 'chinanorth': '🇨🇳',
-            'spaincentral': '🇪🇸',
-            'swedencentral': '🇸🇪',
-            'polandcentral': '🇵🇱',
-            'qatarcentral': '🇶🇦',
-            'mexicocentral': '🇲🇽',
-            'israelcentral': '🇮🇱',
-            'austriaeast': '🇦🇹',
-            'belgiumcentral': '🇧🇪',
-            'chilecentral': '🇨🇱',
-            'taiwannorth': '🇹🇼'
-        };
-
-        // Try exact match first
-        const regionLower = region.toLowerCase();
-        if (regionFlags[regionLower]) {
-            console.log(`Found exact match for ${region}: ${regionFlags[regionLower]}`);
-            return regionFlags[regionLower];
-        }
-
-        // Try partial matches for complex region names
-        for (const [key, flag] of Object.entries(regionFlags)) {
-            if (regionLower.includes(key.toLowerCase()) || key.toLowerCase().includes(regionLower)) {
-                console.log(`Found partial match for ${region} -> ${key}: ${flag}`);
-                return flag;
-            }
-        }
-
-        console.log(`No flag found for region: ${region}, using default 🌐`);
-        return '🌐'; // Default for unknown regions
     }
 
     showRegionChanges(region, displayName, changeCount) {
@@ -279,7 +225,7 @@ class AzureServiceTagsDashboard {
         const modalContent = `
             <div class="region-modal">
                 <div class="region-modal-header">
-                    <h3>${this.getRegionFlag(region)} ${displayName}</h3>
+                    <h3>🗺️ ${displayName}</h3>
                     <p>${changeCount} total changes</p>
                     <button onclick="dashboard.closeRegionModal()" class="close-modal-btn">&times;</button>
                 </div>

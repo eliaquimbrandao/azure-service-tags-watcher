@@ -523,12 +523,6 @@ body {
 .region-info {
     display: flex;
     align-items: center;
-    gap: 10px;
-}
-
-.region-flag {
-    font-size: 1.2em;
-    min-width: 24px;
 }
 
 .region-name {
