@@ -11,6 +11,9 @@ on:
 jobs:
   update-data:
     runs-on: ubuntu-latest
+    permissions:
+      contents: write  # Allow pushing to repository
+      actions: read    # Allow reading workflow files
 
     steps:
       - name: Checkout repository
