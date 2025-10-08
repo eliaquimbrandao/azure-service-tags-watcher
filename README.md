@@ -1,4 +1,4 @@
-# Azure Service Tags Dashboard
+# Azure Service Tags Watcher
 
 🌐 **Live Dashboard**: Track changes to Azure Service Tags and IP ranges with automated weekly updates
 
@@ -17,7 +17,7 @@ A completely **FREE** solution using GitHub Actions + GitHub Pages to monitor al
 
 ## 🎯 Live Demo
 
-Visit the live dashboard: `https://yourusername.github.io/azure-service-tags-dashboard`
+Visit the live dashboard: `https://eliaquimbrandao.github.io/azure-service-tags-watcher`
 
 ## 🛠️ Quick Setup (5 minutes)
 
@@ -25,8 +25,8 @@ Visit the live dashboard: `https://yourusername.github.io/azure-service-tags-das
 
 ```bash
 # Fork this repository on GitHub, then:
-git clone https://github.com/yourusername/azure-service-tags-dashboard.git
-cd azure-service-tags-dashboard
+git clone https://github.com/yourusername/azure-service-tags-watcher.git
+cd azure-service-tags-watcher
 ```
 
 ### 2. Enable GitHub Pages
