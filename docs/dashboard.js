@@ -9,6 +9,8 @@ class AzureServiceTagsDashboard {
         this.summaryData = null;
         this.changesData = null;
         this.filteredServices = [];
+        this.activeServicesChart = null;
+        this.regionalChart = null;
 
         this.init();
     }
@@ -111,7 +113,12 @@ class AzureServiceTagsDashboard {
             return;
         }
 
-        new Chart(ctx, {
+        // Destroy existing chart if it exists
+        if (this.activeServicesChart) {
+            this.activeServicesChart.destroy();
+        }
+
+        this.activeServicesChart = new Chart(ctx, {
             type: 'horizontalBar',
             data: {
                 labels: topServices.map(s => this.truncateServiceName(s.service)),
@@ -155,16 +162,35 @@ class AzureServiceTagsDashboard {
         const ctx = document.getElementById('regionalChart').getContext('2d');
         const regionalData = this.summaryData.regional_changes || {};
 
+        console.log(`Regional data entries: ${Object.keys(regionalData).length}`);
+
         if (Object.keys(regionalData).length === 0) {
             ctx.canvas.parentElement.innerHTML = '<p>No regional change data available</p>';
             return;
+        }
+
+        // Safety check for very large datasets
+        if (Object.keys(regionalData).length > 200) {
+            ctx.canvas.parentElement.innerHTML = `
+                <div style="text-align: center; padding: 20px;">
+                    <p><strong>🌍 Regional Changes</strong></p>
+                    <p>${Object.keys(regionalData).length} regions with changes</p>
+                    <p>Chart limited to top 10 regions for performance</p>
+                </div>
+            `;
+            return;
+        }
+
+        // Destroy existing chart if it exists
+        if (this.regionalChart) {
+            this.regionalChart.destroy();
         }
 
         const sortedRegions = Object.entries(regionalData)
             .sort(([, a], [, b]) => b - a)
             .slice(0, 10);
 
-        new Chart(ctx, {
+        this.regionalChart = new Chart(ctx, {
             type: 'doughnut',
             data: {
                 labels: sortedRegions.map(([region]) => region || 'Global'),
