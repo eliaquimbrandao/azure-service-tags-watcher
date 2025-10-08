@@ -179,6 +179,11 @@ class AzureServiceTagsDashboard {
 
         document.getElementById('heroTotalRanges').textContent =
             this.summaryData.total_ip_ranges?.toLocaleString() || '...';
+
+        // Calculate actual region count from regional data
+        const regionalData = this.summaryData.regional_changes || {};
+        const regionCount = Object.keys(regionalData).length;
+        document.getElementById('heroRegions').textContent = regionCount > 0 ? regionCount.toLocaleString() : '...';
     }
 
     renderLastUpdated() {
@@ -519,7 +524,7 @@ class AzureServiceTagsDashboard {
             const ipCount = props.addressPrefixes?.length || 0;
 
             return `
-                <div class="service-item">
+                <div class="service-item" onclick="dashboard.showServiceDetails('${service.name}')">
                     <div class="service-name">${service.name}</div>
                     <div class="service-details">
                         Region: ${getRegionDisplayName(props.region)} | 
