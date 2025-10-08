@@ -11,6 +11,7 @@ class AzureServiceTagsDashboard {
         this.filteredServices = [];
         this.activeServicesChart = null;
         this.regionalChart = null;
+        this.currentModal = null;
 
         this.init();
     }
@@ -101,7 +102,7 @@ class AzureServiceTagsDashboard {
 
     renderCharts() {
         this.renderActiveServicesChart();
-        this.renderRegionalChart();
+        this.renderRegionalList();
     }
 
     renderActiveServicesChart() {
@@ -158,61 +159,130 @@ class AzureServiceTagsDashboard {
         });
     }
 
-    renderRegionalChart() {
-        const ctx = document.getElementById('regionalChart').getContext('2d');
+    renderRegionalList() {
+        const regionalContainer = document.getElementById('regionalChart').parentElement;
         const regionalData = this.summaryData.regional_changes || {};
 
         console.log(`Regional data entries: ${Object.keys(regionalData).length}`);
 
         if (Object.keys(regionalData).length === 0) {
-            ctx.canvas.parentElement.innerHTML = '<p>No regional change data available</p>';
+            regionalContainer.innerHTML = '<p>No regional change data available</p>';
             return;
         }
 
-        // Safety check for very large datasets
-        if (Object.keys(regionalData).length > 200) {
-            ctx.canvas.parentElement.innerHTML = `
-                <div style="text-align: center; padding: 20px;">
-                    <p><strong>🌍 Regional Changes</strong></p>
-                    <p>${Object.keys(regionalData).length} regions with changes</p>
-                    <p>Chart limited to top 10 regions for performance</p>
+        // Sort regions by change count
+        const sortedRegions = Object.entries(regionalData)
+            .sort(([, a], [, b]) => b - a);
+
+        // Create interactive regional list
+        const regionsHtml = sortedRegions.map(([region, count]) => {
+            const displayName = region || 'Global';
+            const flagEmoji = this.getRegionFlag(region);
+            
+            return `
+                <div class="region-item" data-region="${region}" onclick="dashboard.showRegionChanges('${region}', '${displayName}', ${count})">
+                    <div class="region-info">
+                        <span class="region-flag">${flagEmoji}</span>
+                        <span class="region-name">${displayName}</span>
+                    </div>
+                    <div class="region-count">
+                        <span class="change-badge">${count}</span>
+                    </div>
                 </div>
             `;
+        }).join('');
+
+        regionalContainer.innerHTML = `
+            <h3>🗺️ Changes by Region</h3>
+            <div class="regions-list">
+                ${regionsHtml}
+            </div>
+            <div class="region-help">
+                💡 Click on a region to see its specific changes
+            </div>
+        `;
+    }
+
+    getRegionFlag(region) {
+        if (!region) return '🌍';
+        
+        const regionFlags = {
+            'australiacentral': '🇦🇺', 'australiacentral2': '🇦🇺', 'australiaeast': '🇦🇺', 'australiasoutheast': '🇦🇺',
+            'brazilsouth': '🇧🇷', 'brazilse': '🇧🇷',
+            'canadacentral': '🇨🇦', 'canadaeast': '🇨🇦',
+            'eastasia': '🌏', 'southeastasia': '🌏',
+            'eastus': '🇺🇸', 'eastus2': '🇺🇸', 'westus': '🇺🇸', 'westus2': '🇺🇸', 'westus3': '🇺🇸', 'centralus': '🇺🇸', 'northcentralus': '🇺🇸', 'southcentralus': '🇺🇸',
+            'northeurope': '🇪🇺', 'westeurope': '🇪🇺', 'francecentral': '🇫🇷', 'francesouth': '🇫🇷',
+            'germanywestcentral': '🇩🇪', 'germanynorth': '🇩🇪',
+            'italynorth': '🇮🇹',
+            'japaneast': '🇯🇵', 'japanwest': '🇯🇵',
+            'koreacentral': '🇰🇷', 'koreasouth': '🇰🇷',
+            'norwayeast': '🇳🇴', 'norwaywest': '🇳🇴',
+            'southafricanorth': '🇿🇦', 'southafricawest': '🇿🇦',
+            'switzerlandnorth': '🇨🇭', 'switzerlandwest': '🇨🇭',
+            'uksouth': '🇬🇧', 'ukwest': '🇬🇧',
+            'uaenorth': '🇦🇪', 'uaecentral': '🇦🇪',
+            'indiacentral': '🇮🇳', 'indiasouth': '🇮🇳', 'indiawest': '🇮🇳'
+        };
+        
+        for (const [key, flag] of Object.entries(regionFlags)) {
+            if (region.toLowerCase().includes(key)) {
+                return flag;
+            }
+        }
+        
+        return '🌐'; // Default for unknown regions
+    }
+
+    showRegionChanges(region, displayName, changeCount) {
+        const changes = this.changesData.changes || [];
+        const regionChanges = changes.filter(change => 
+            (change.region || '') === region
+        );
+
+        if (regionChanges.length === 0) {
+            alert(`No detailed changes available for ${displayName}`);
             return;
         }
 
-        // Destroy existing chart if it exists
-        if (this.regionalChart) {
-            this.regionalChart.destroy();
-        }
+        // Create modal content
+        const changesHtml = regionChanges.slice(0, 20).map(change => {
+            return this.renderChangeItem(change);
+        }).join('');
 
-        const sortedRegions = Object.entries(regionalData)
-            .sort(([, a], [, b]) => b - a)
-            .slice(0, 10);
+        const modalContent = `
+            <div class="region-modal">
+                <div class="region-modal-header">
+                    <h3>${this.getRegionFlag(region)} ${displayName}</h3>
+                    <p>${changeCount} total changes</p>
+                    <button onclick="dashboard.closeRegionModal()" class="close-modal-btn">&times;</button>
+                </div>
+                <div class="region-modal-body">
+                    ${changesHtml}
+                    ${regionChanges.length > 20 ? `<p><strong>... and ${regionChanges.length - 20} more changes</strong></p>` : ''}
+                </div>
+            </div>
+        `;
 
-        this.regionalChart = new Chart(ctx, {
-            type: 'doughnut',
-            data: {
-                labels: sortedRegions.map(([region]) => region || 'Global'),
-                datasets: [{
-                    data: sortedRegions.map(([, count]) => count),
-                    backgroundColor: [
-                        '#0078d4', '#106ebe', '#005a9e', '#004578',
-                        '#003152', '#107c10', '#498205', '#107c10',
-                        '#ff8c00', '#d13438'
-                    ]
-                }]
-            },
-            options: {
-                responsive: true,
-                maintainAspectRatio: false,
-                plugins: {
-                    legend: {
-                        position: 'bottom'
-                    }
-                }
+        // Show modal
+        const modalOverlay = document.createElement('div');
+        modalOverlay.className = 'region-modal-overlay';
+        modalOverlay.innerHTML = modalContent;
+        modalOverlay.onclick = (e) => {
+            if (e.target === modalOverlay) {
+                this.closeRegionModal();
             }
-        });
+        };
+        
+        document.body.appendChild(modalOverlay);
+        this.currentModal = modalOverlay;
+    }
+
+    closeRegionModal() {
+        if (this.currentModal) {
+            document.body.removeChild(this.currentModal);
+            this.currentModal = null;
+        }
     }
 
     renderRecentChanges() {

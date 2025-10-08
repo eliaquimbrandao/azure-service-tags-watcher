@@ -493,3 +493,156 @@ body {
         border: 1px solid var(--border-color) !important;
     }
 }
+/* Regional List Styles */
+.regions-list {
+    max-height: 400px;
+    overflow-y: auto;
+    border: 1px solid var(--border-color);
+    border-radius: var(--border-radius);
+    margin: 10px 0;
+}
+
+.region-item {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 12px 16px;
+    border-bottom: 1px solid var(--border-color);
+    cursor: pointer;
+    transition: background-color 0.2s ease;
+}
+
+.region-item:hover {
+    background-color: #f0f6ff;
+}
+
+.region-item:last-child {
+    border-bottom: none;
+}
+
+.region-info {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.region-flag {
+    font-size: 1.2em;
+    min-width: 24px;
+}
+
+.region-name {
+    font-weight: 500;
+    color: var(--text-color);
+}
+
+.change-badge {
+    background-color: var(--primary-color);
+    color: white;
+    padding: 4px 8px;
+    border-radius: 12px;
+    font-size: 0.85em;
+    font-weight: 600;
+    min-width: 30px;
+    text-align: center;
+}
+
+.region-help {
+    text-align: center;
+    color: var(--text-muted);
+    font-size: 0.9em;
+    margin-top: 10px;
+    padding: 10px;
+    background-color: #f8f9fa;
+    border-radius: var(--border-radius);
+}
+
+/* Regional Modal Styles */
+.region-modal-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background-color: rgba(0, 0, 0, 0.5);
+    z-index: 1000;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 20px;
+}
+
+.region-modal {
+    background: white;
+    border-radius: var(--border-radius);
+    max-width: 800px;
+    width: 100%;
+    max-height: 80vh;
+    overflow: hidden;
+    box-shadow: var(--shadow);
+}
+
+.region-modal-header {
+    background-color: var(--primary-color);
+    color: white;
+    padding: 20px;
+    position: relative;
+}
+
+.region-modal-header h3 {
+    margin: 0 0 5px 0;
+    font-size: 1.4em;
+}
+
+.region-modal-header p {
+    margin: 0;
+    opacity: 0.9;
+}
+
+.close-modal-btn {
+    position: absolute;
+    top: 15px;
+    right: 20px;
+    background: none;
+    border: none;
+    color: white;
+    font-size: 24px;
+    cursor: pointer;
+    padding: 0;
+    width: 30px;
+    height: 30px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.close-modal-btn:hover {
+    background-color: rgba(255, 255, 255, 0.2);
+}
+
+.region-modal-body {
+    padding: 20px;
+    max-height: calc(80vh - 100px);
+    overflow-y: auto;
+}
+
+/* Responsive design for regional modal */
+@media (max-width: 768px) {
+    .region-modal-overlay {
+        padding: 10px;
+    }
+    
+    .region-modal {
+        max-height: 90vh;
+    }
+    
+    .region-modal-header {
+        padding: 15px;
+    }
+    
+    .region-modal-body {
+        padding: 15px;
+        max-height: calc(90vh - 80px);
+    }
+}
