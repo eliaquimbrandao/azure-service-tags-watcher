@@ -3,6 +3,77 @@
  * Interactive dashboard for monitoring Azure service tag changes
  */
 
+// Azure region mapping - programmatic name to display name
+const AZURE_REGIONS = {
+    'australiacentral': 'Australia Central',
+    'australiacentral2': 'Australia Central 2',
+    'australiaeast': 'Australia East',
+    'australiasoutheast': 'Australia Southeast',
+    'austriaeast': 'Austria East',
+    'belgiumcentral': 'Belgium Central',
+    'brazilsouth': 'Brazil South',
+    'brazilsoutheast': 'Brazil Southeast',
+    'canadacentral': 'Canada Central',
+    'canadaeast': 'Canada East',
+    'centralindia': 'Central India',
+    'centralus': 'Central US',
+    'chilecentral': 'Chile Central',
+    'eastasia': 'East Asia',
+    'eastus': 'East US',
+    'eastus2': 'East US 2',
+    'francecentral': 'France Central',
+    'francesouth': 'France South',
+    'germanynorth': 'Germany North',
+    'germanywestcentral': 'Germany West Central',
+    'indonesiacentral': 'Indonesia Central',
+    'israelcentral': 'Israel Central',
+    'italynorth': 'Italy North',
+    'japaneast': 'Japan East',
+    'japanwest': 'Japan West',
+    'koreacentral': 'Korea Central',
+    'koreasouth': 'Korea South',
+    'malaysiawest': 'Malaysia West',
+    'mexicocentral': 'Mexico Central',
+    'newzealandnorth': 'New Zealand North',
+    'northcentralus': 'North Central US',
+    'northeurope': 'North Europe',
+    'norwayeast': 'Norway East',
+    'norwaywest': 'Norway West',
+    'polandcentral': 'Poland Central',
+    'qatarcentral': 'Qatar Central',
+    'southafricanorth': 'South Africa North',
+    'southafricawest': 'South Africa West',
+    'southcentralus': 'South Central US',
+    'southindia': 'South India',
+    'southeastasia': 'Southeast Asia',
+    'spaincentral': 'Spain Central',
+    'swedencentral': 'Sweden Central',
+    'swedensouth': 'Sweden South',
+    'switzerlandnorth': 'Switzerland North',
+    'switzerlandwest': 'Switzerland West',
+    'uaecentral': 'UAE Central',
+    'uaenorth': 'UAE North',
+    'uksouth': 'UK South',
+    'ukwest': 'UK West',
+    'westcentralus': 'West Central US',
+    'westeurope': 'West Europe',
+    'westindia': 'West India',
+    'westus': 'West US',
+    'westus2': 'West US 2',
+    'westus3': 'West US 3'
+};
+
+function getRegionDisplayName(programmaticName) {
+    if (!programmaticName || programmaticName === '') {
+        return 'Global';
+    }
+    
+    // Clean the programmatic name (remove any prefixes/suffixes that might exist)
+    const cleanName = programmaticName.toLowerCase().replace(/[^a-z]/g, '');
+    
+    return AZURE_REGIONS[cleanName] || programmaticName;
+}
+
 class AzureServiceTagsDashboard {
     constructor() {
         this.currentData = null;
@@ -183,8 +254,8 @@ class AzureServiceTagsDashboard {
 
         // Create interactive regional list
         const regionsHtml = sortedRegions.map(([region, count]) => {
-            const displayName = region || 'Global';
-            
+            const displayName = getRegionDisplayName(region);
+
             return `
                 <div class="region-item" data-region="${region}" onclick="dashboard.showRegionChanges('${region}', '${displayName}', ${count})">
                     <div class="region-info">
@@ -195,7 +266,7 @@ class AzureServiceTagsDashboard {
                     </div>
                 </div>
             `;
-        }).join('');        regionalContainer.innerHTML = `
+        }).join(''); regionalContainer.innerHTML = `
             <h3>🗺️ Changes by Region</h3>
             <div class="regions-list">
                 ${regionsHtml}
@@ -335,7 +406,7 @@ class AzureServiceTagsDashboard {
         if (change.type === 'ip_changes') {
             detailsHtml = `
                 <div class="change-details">
-                    <strong>Region:</strong> ${change.region || 'Global'} | 
+                    <strong>Region:</strong> ${getRegionDisplayName(change.region)} | 
                     <strong>System Service:</strong> ${change.system_service || 'N/A'}
                 </div>
                 <div class="ip-change-summary">
@@ -348,7 +419,7 @@ class AzureServiceTagsDashboard {
         } else if (change.type === 'service_added') {
             detailsHtml = `
                 <div class="change-details">
-                    <strong>Region:</strong> ${change.region || 'Global'} | 
+                    <strong>Region:</strong> ${getRegionDisplayName(change.region)} | 
                     <strong>IP Ranges:</strong> ${change.ip_count} | 
                     <strong>System Service:</strong> ${change.system_service || 'N/A'}
                 </div>
@@ -356,7 +427,7 @@ class AzureServiceTagsDashboard {
         } else if (change.type === 'service_removed') {
             detailsHtml = `
                 <div class="change-details">
-                    <strong>Region:</strong> ${change.region || 'Global'} | 
+                    <strong>Region:</strong> ${getRegionDisplayName(change.region)} | 
                     <strong>System Service:</strong> ${change.system_service || 'N/A'}
                 </div>
             `;
@@ -430,7 +501,7 @@ class AzureServiceTagsDashboard {
                 <div class="service-item" onclick="dashboard.showServiceDetails('${service.name}')">
                     <div class="service-name">${service.name}</div>
                     <div class="service-details">
-                        Region: ${props.region || 'Global'} | 
+                        Region: ${getRegionDisplayName(props.region)} | 
                         System Service: ${props.systemService || 'N/A'} | 
                         IP Ranges: ${ipCount}
                     </div>
@@ -449,7 +520,7 @@ class AzureServiceTagsDashboard {
         const props = service.properties || {};
 
         document.getElementById('modalServiceName').textContent = serviceName;
-        document.getElementById('modalRegion').textContent = props.region || 'Global';
+        document.getElementById('modalRegion').textContent = getRegionDisplayName(props.region);
         document.getElementById('modalSystemService').textContent = props.systemService || 'N/A';
         document.getElementById('modalIPCount').textContent =
             (props.addressPrefixes?.length || 0).toLocaleString();
