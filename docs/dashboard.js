@@ -211,7 +211,7 @@ class AzureServiceTagsDashboard {
 
         // Limit to first 10 changes for better performance
         const displayLimit = 10;
-        
+
         // Safety check for very large datasets
         if (changes.length > 5000) {
             changesContainer.innerHTML = `
@@ -230,9 +230,9 @@ class AzureServiceTagsDashboard {
             `;
             return;
         }
-        
+
         const displayChanges = changes.slice(0, displayLimit);
-        
+
         const changesHtml = displayChanges.map(change => {
             return this.renderChangeItem(change);
         }).join('');
@@ -246,10 +246,10 @@ class AzureServiceTagsDashboard {
                     <div class="change-details">
                         <strong>📊 Showing ${displayLimit} of ${changes.length.toLocaleString()} total changes</strong>
                         <br>
-                        ${remainingChanges >= 1000 ? 
-                            `This appears to be an initial data load with ${changes.length.toLocaleString()} service additions.` : 
-                            `... and ${remainingChanges.toLocaleString()} more changes.`
-                        }
+                        ${remainingChanges >= 1000 ?
+                    `This appears to be an initial data load with ${changes.length.toLocaleString()} service additions.` :
+                    `... and ${remainingChanges.toLocaleString()} more changes.`
+                }
                         <br>
                         <a href="./data/changes/latest-changes.json" target="_blank" style="color: var(--primary-color);">📄 View complete data file</a>
                     </div>
