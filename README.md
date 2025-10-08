@@ -1,5 +1,11 @@
 # Azure Service Tags Watcher
 
+[![Python](https://img.shields.io/badge/Python-3.6+-blue.svg)](https://www.python.org/downloads/)
+[![Azure](https://img.shields.io/badge/Azure-Service%20Tags-blue.svg)](https://docs.microsoft.com/en-us/azure/virtual-network/service-tags-overview)
+[![GitHub Pages](https://img.shields.io/badge/GitHub-Pages-green.svg)](https://pages.github.com/)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+![Status](https://img.shields.io/badge/Status-Active%20Development-orange.svg)
+
 🌐 **Live Dashboard**: Track changes to Azure Service Tags and IP ranges with automated weekly updates
 
 A completely **FREE** solution using GitHub Actions + GitHub Pages to monitor all 3000+ Azure service tags and visualize changes over time.
@@ -33,79 +39,113 @@ cd azure-service-tags-watcher
 
 1. Go to **Settings** → **Pages** in your GitHub repository
 2. Source: **Deploy from a branch**
-3. Branch: **main** / **docs**
-4. Click **Save**
+3. Branch: **main**
+4. Folder: **/ (root)** *(GitHub Pages will automatically serve from `docs/` folder)*
+5. Click **Save**
 
 ### 3. Enable GitHub Actions
 
 1. Go to **Actions** tab in your repository
 2. Click **"I understand my workflows, go ahead and enable them"**
-3. The first run will trigger automatically
 
-### 4. Wait for First Data Collection
+### 4. Run Initial Baseline Setup
 
-- GitHub Action will run automatically every Monday at 7 AM UTC
-- Or manually trigger: **Actions** → **Update Azure Service Tags** → **Run workflow**
-- After first run, your dashboard will be live!
+**Important**: For the first run, you need to establish a baseline:
+
+1. Go to **Actions** → **Update Azure Service Tags** → **Run workflow**
+2. Check **"Setup initial baseline (first run)"** checkbox
+3. Click **Run workflow**
+4. Wait 2-3 minutes for completion
+
+### 5. Schedule Regular Updates
+
+After baseline setup, the system will:
+
+- Auto-run every **Monday at 7:00 AM UTC**
+- Or manually trigger anytime without the baseline checkbox
+- Dashboard updates automatically after each run
 
 ## 📁 Project Structure
 
-```
+```text
 azure-service-tags-watcher/
-├── .github/workflows/
-│   └── update-data.yml          # Weekly automation
-├── data/
-│   ├── current.json             # Latest Azure data
-│   ├── summary.json             # Dashboard statistics
-│   ├── history/                 # Weekly snapshots
-│   │   ├── 2025-10-01.json
-│   │   └── 2025-10-08.json
-│   └── changes/                 # Change reports
-│       ├── 2025-10-08-changes.json
-│       └── latest-changes.json
-├── docs/                        # GitHub Pages website
-│   ├── index.html              # Main dashboard
-│   ├── dashboard.js            # JavaScript logic
-│   ├── style.css               # Styling
-│   └── assets/                 # Images, fonts, etc.
+├── .github/
+│   ├── workflows/
+│   │   └── update-data.yml          # Weekly automation
+│   └── copilot-instructions.md      # AI agent guidance
+├── docs/                            # GitHub Pages website
+│   ├── index.html                   # Main dashboard
+│   ├── dashboard.js                 # JavaScript logic
+│   ├── style.css                    # Modern styling
+│   ├── style-old.css                # Legacy styles
+│   └── data/                        # JSON data files
+│       ├── current.json             # Latest Azure data
+│       ├── summary.json             # Dashboard statistics
+│       ├── history/                 # Weekly snapshots
+│       │   └── 2025-10-08.json
+│       └── changes/                 # Change reports
+│           ├── 2025-10-08-changes.json
+│           └── latest-changes.json
+├── data/                            # Mirror of docs/data (legacy)
+│   ├── current.json
+│   ├── summary.json
+│   ├── history/
+│   └── changes/
 ├── scripts/
-│   └── azure_watcher.py        # Data collection script
-└── README.md                   # This file
+│   └── azure_watcher.py             # Data collection script
+└── README.md                        # This file
 ```
 
 ## 🔧 How It Works
 
 1. **GitHub Action** runs every Monday morning
-2. **Python script** downloads latest Azure Service Tags JSON
-3. **Compares** with previous week's data
+2. **Python script** downloads latest Azure Service Tags JSON from Microsoft
+3. **Compares** with previous week's data using SHA256 hash comparison
 4. **Generates** JSON files with changes and statistics
-5. **Commits** new data to repository
+5. **Commits** new data to repository (both `docs/data/` and `data/` folders)
 6. **GitHub Pages** serves updated dashboard automatically
+
+### Dependencies
+
+The system only requires Python 3.11+ with the `requests` library:
+
+```bash
+# Dependencies are automatically installed by GitHub Actions
+pip install requests
+```
+
+No additional packages, databases, or external services needed!
 
 ## 📊 Dashboard Features
 
 ### Main Dashboard
 
-- **Total Services**: Count of all Azure service tags
-- **Weekly Changes**: Number of IP range changes this week
-- **Change Frequency Chart**: Visual timeline of changes
-- **Most Active Services**: Which services change most often
-- **Regional Heatmap**: Geographic distribution of changes
+- **Total Services**: Count of all Azure service tags (3000+)
+- **Total IP Ranges**: Number of individual IP ranges across all services  
+- **Weekly Changes**: Number of IP range changes detected this week
+- **Most Active Services Chart**: Bar chart showing services with frequent changes
+- **Regional Changes List**: Services organized by Azure region
 
-### Service Search
+### Service Search & Discovery
 
 - **Real-time search** through all 3000+ service tags
-- **Filter by region** (e.g., "WestEurope", "EastUS")
+- **Filter by region** (e.g., "WestEurope", "EastUS")  
 - **Filter by service** (e.g., "Storage", "SQL", "AzureCloud")
-- **View current IP ranges** for any service
-- **Historical changes** for specific services
+- **Service details modal** - View current IP ranges for any service
+- **Instant results** - No page refresh needed
 
-### Change Reports
+### Change Tracking
 
-- **Latest changes** with added/removed IP ranges
-- **Change timeline** showing when each service was modified
-- **Impact analysis** - how many IP ranges were affected
-- **Download data** as JSON for automation
+- **Weekly change detection** - Automated comparison with previous data
+- **Recent changes feed** - Latest additions/removals to IP ranges
+- **Change statistics** - Count of services added, removed, or modified
+- **JSON data export** - All data accessible via API endpoints for automation
+
+### Current Limitations
+
+- **Historical trends**: Only tracks week-over-week changes (no long-term charts yet)
+- **Per-service history**: No drill-down into individual service change history  
+- **Regional visualization**: List format rather than interactive map
 
 ## 🎨 Customization
 
@@ -127,12 +167,21 @@ on:
 - **Layout**: Update `docs/index.html`
 - **Add features**: All code is open source!
 
+### Data Storage Architecture
+
+The project maintains data in two locations:
+
+- **`docs/data/`**: Primary location served by GitHub Pages (dashboard reads from here)
+- **`data/`**: Legacy mirror for backward compatibility
+
+Both folders contain identical data. The Python script updates both locations to ensure consistency.
+
 ### Add Your Own Services
 
-Track specific services by editing `scripts/azure_watcher.py`:
+Track specific services by editing `scripts/azure_watcher.py`. The script processes all 3000+ service tags by default, but you can add custom filtering:
 
 ```python
-# Focus on specific services
+# Example: Focus on specific services (modify detect_changes function)
 PRIORITY_SERVICES = [
     'Storage.WestEurope',
     'AzureSQLDatabase.EastUS', 
@@ -162,20 +211,54 @@ PRIORITY_SERVICES = [
 
 ## 🔍 API Access
 
-All data is available as JSON files:
+All data is available as JSON files via GitHub Pages:
 
 ```bash
-# Current data
-curl https://yourusername.github.io/azure-service-tags-dashboard/data/current.json
+# Replace 'yourusername' with your GitHub username
+BASE_URL="https://yourusername.github.io/azure-service-tags-watcher"
 
-# Latest changes
-curl https://yourusername.github.io/azure-service-tags-dashboard/data/changes/latest-changes.json
+# Current Azure Service Tags (raw Microsoft data)
+curl "${BASE_URL}/data/current.json"
 
-# Historical data
-curl https://yourusername.github.io/azure-service-tags-dashboard/data/history/2025-10-08.json
+# Dashboard statistics and summary  
+curl "${BASE_URL}/data/summary.json"
 
-# Dashboard summary
-curl https://yourusername.github.io/azure-service-tags-dashboard/data/summary.json
+# Latest detected changes
+curl "${BASE_URL}/data/changes/latest-changes.json"
+
+# Historical snapshot (replace date)
+curl "${BASE_URL}/data/history/2025-10-08.json"
+
+# All available historical files
+curl "${BASE_URL}/data/history/" | grep -o '2025-[0-9][0-9]-[0-9][0-9].json'
+```
+
+### Data Format Examples
+
+```json
+// summary.json structure
+{
+  "last_updated": "2025-10-08T14:16:40.528851+00:00",
+  "total_services": 3039,
+  "total_ip_ranges": 92436,
+  "changes_this_week": 0,
+  "top_active_services": []
+}
+
+// current.json structure (Microsoft's format)
+{
+  "changeNumber": "XXX",
+  "cloud": "Public", 
+  "values": [
+    {
+      "name": "ActionGroup",
+      "id": "ActionGroup",
+      "properties": {
+        "addressPrefixes": ["13.66.60.119/32", "..."]
+      }
+    }
+  ]
+}
 ```
 
 ## 🚨 Troubleshooting
@@ -183,20 +266,43 @@ curl https://yourusername.github.io/azure-service-tags-dashboard/data/summary.js
 ### GitHub Action Not Running
 
 1. Check **Actions** tab for error messages
-2. Ensure repository is public (or have GitHub Pro for private Actions)
-3. Verify Python script syntax in `scripts/azure_watcher.py`
+2. Ensure repository is public (or have GitHub Pro for private Actions)  
+3. Verify workflow file exists: `.github/workflows/update-data.yml`
+4. Check if baseline setup was completed first
 
 ### Dashboard Not Loading
 
-1. Check GitHub Pages is enabled in **Settings** → **Pages**
-2. Ensure `docs/` folder exists with HTML files
-3. Wait 5-10 minutes after enabling Pages
+1. Verify GitHub Pages is enabled: **Settings** → **Pages** → Deploy from `main` branch
+2. Ensure `docs/index.html` exists and is valid HTML
+3. Wait 5-10 minutes after enabling Pages for CDN propagation
+4. Check browser console for JavaScript errors (F12)
 
-### Missing Data
+### Missing Data or Empty Dashboard
 
-1. Check if GitHub Action completed successfully
-2. Look at Action logs for Python errors
-3. Ensure `data/` folder has JSON files
+1. **First-time setup**: Run baseline setup in Actions with checkbox enabled
+2. **Check Action logs**: Go to Actions → Latest run → View logs for Python errors
+3. **Data structure**: Ensure `docs/data/current.json` has valid JSON with "values" array
+4. **Microsoft API changes**: Check if Azure Service Tags URL structure changed
+
+### Local Development Issues
+
+```bash
+# Test Python script locally
+cd scripts
+python azure_watcher.py --baseline  # First run
+python azure_watcher.py            # Regular run
+
+# Test dashboard locally  
+cd docs
+python -m http.server 8000
+# Open http://localhost:8000
+```
+
+### Common Error Messages
+
+- **"Could not locate JSON download link"**: Microsoft changed their confirmation page
+- **"All retry attempts failed"**: Network connectivity issues or rate limiting
+- **"Dashboard shows 0 services"**: Data files corrupted or baseline not established
 
 ## 🤝 Contributing
 
@@ -215,17 +321,17 @@ Ideas for contributions:
 - 📱 Mobile app integration
 - 🌍 Multi-language support
 
-## 📄 License
+## ⚠️ Disclaimer
 
-MIT License - Feel free to use, modify, and distribute!
+> [!WARNING]
+> **Disclaimer:**  
+> This codebase was developed with the assistance of artificial intelligence and is provided **"as-is"**, without warranties or guarantees of any kind. While extensive testing has yielded successful results, the author and contributors assume no responsibility for any direct or indirect damages, losses, or operational issues resulting from its use or misuse.  
+> **Users are solely responsible for thoroughly reviewing, testing, and validating these scripts in their own environments before deploying them in production. By using this code, you acknowledge and accept all associated risks.**
 
-## 🙏 Credits
+## 📜 License
 
-- **Original Azure Service Tag Watcher**: Command-line tool inspiration
-- **Microsoft**: Azure Service Tags API
-- **GitHub**: Free hosting and automation
-- **Chart.js**: Beautiful charts
-- **Community**: Ideas and contributions
+Made with ❤️ by [Eliaquim Brandao](https://github.com/eliaquimbrandao)  
+Distributed under the [MIT License](https://choosealicense.com/licenses/mit/).
 
 ---
 
