@@ -182,7 +182,28 @@ class AzureServiceTagsDashboard {
 
         // Calculate actual region count from regional data
         const regionalData = this.summaryData.regional_changes || {};
-        const regionCount = Object.keys(regionalData).length;
+        let regionCount = Object.keys(regionalData).length;
+
+        // If no regional data available yet, extract from current service tags
+        if (regionCount === 0 && this.currentData && this.currentData.values) {
+            const regions = new Set();
+            this.currentData.values.forEach(tag => {
+                const name = tag.name || '';
+                if (name.includes('.')) {
+                    const parts = name.split('.');
+                    if (parts.length > 1) {
+                        const region = parts[parts.length - 1].toLowerCase();
+                        // Filter out non-region suffixes
+                        if (!['global', 'all', 'public', 'private'].includes(region) &&
+                            !region.match(/^\d+$/) && region.length > 2) {
+                            regions.add(region);
+                        }
+                    }
+                }
+            });
+            regionCount = regions.size;
+        }
+
         document.getElementById('heroRegions').textContent = regionCount > 0 ? regionCount.toLocaleString() : '...';
     }
 

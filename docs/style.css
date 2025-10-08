@@ -34,14 +34,16 @@ body {
     overflow-x: hidden;
 }
 
-/* Hero Section with Earth Video Background */
+/* Hero Section with Earth Image Background */
 .hero-section {
     position: relative;
     min-height: 100vh;
     display: flex;
     align-items: center;
     justify-content: center;
-    background: linear-gradient(135deg, #0a0a1a 0%, #1a1a3a 50%, #2a2a5a 100%);
+    background: 
+        linear-gradient(135deg, rgba(10, 10, 26, 0.8) 0%, rgba(26, 26, 58, 0.7) 50%, rgba(42, 42, 90, 0.6) 100%),
+        url('https://images.unsplash.com/photo-1614730321146-b6fa6a46bcb4?q=80&w=2000&auto=format&fit=crop') center/cover no-repeat;
     color: white;
     overflow: hidden;
 }
@@ -53,23 +55,8 @@ body {
     left: 0;
     width: 100%;
     height: 100%;
-    background: url('https://cdn.pixabay.com/video/2016/01/12/1942-152179475_large.mp4') center/cover;
-    opacity: 0.4;
+    background: radial-gradient(circle at 30% 50%, rgba(0, 150, 255, 0.1) 0%, transparent 50%);
     z-index: 1;
-}
-
-.hero-video {
-    position: absolute;
-    top: 50%;
-    left: 50%;
-    width: 100%;
-    height: 100%;
-    min-width: 100%;
-    min-height: 100%;
-    transform: translate(-50%, -50%);
-    opacity: 0.4;
-    z-index: 1;
-    object-fit: cover;
 }
 
 .hero-background {
