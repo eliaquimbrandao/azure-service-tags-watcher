@@ -67,10 +67,10 @@ function getRegionDisplayName(programmaticName) {
     if (!programmaticName || programmaticName === '') {
         return 'Global';
     }
-    
+
     // Clean the programmatic name (remove any prefixes/suffixes that might exist)
     const cleanName = programmaticName.toLowerCase().replace(/[^a-z]/g, '');
-    
+
     return AZURE_REGIONS[cleanName] || programmaticName;
 }
 
@@ -160,14 +160,23 @@ class AzureServiceTagsDashboard {
 
         document.getElementById('ipChanges').textContent =
             this.summaryData.ip_changes?.toLocaleString() || '0';
+
+        // Update hero stats
+        document.getElementById('heroTotalServices').textContent =
+            this.summaryData.total_services?.toLocaleString() || '...';
+
+        document.getElementById('heroTotalRanges').textContent =
+            this.summaryData.total_ip_ranges?.toLocaleString() || '...';
     }
 
     renderLastUpdated() {
         const lastUpdated = this.summaryData.last_updated;
         if (lastUpdated) {
             const date = new Date(lastUpdated);
-            document.getElementById('lastUpdated').textContent =
-                date.toLocaleString();
+            const formattedDate = date.toLocaleString();
+            
+            // Update both hero and main sections
+            document.getElementById('lastUpdated').textContent = formattedDate;
         }
     }
 

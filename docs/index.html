@@ -14,15 +14,65 @@
 </head>
 
 <body>
-    <div class="container">
-        <!-- Header -->
-        <header class="header">
-            <h1>🌐 Azure Service Tags Watcher</h1>
-            <p>Real-time monitoring of Azure Service Tags and IP range changes</p>
+    <!-- Hero Section with Global Visualization -->
+    <header class="hero-section">
+        <div class="hero-background">
+            <div class="globe-container">
+                <div class="globe">
+                    <div class="globe-inner">
+                        <div class="continent" data-continent="north-america"></div>
+                        <div class="continent" data-continent="south-america"></div>
+                        <div class="continent" data-continent="europe"></div>
+                        <div class="continent" data-continent="africa"></div>
+                        <div class="continent" data-continent="asia"></div>
+                        <div class="continent" data-continent="oceania"></div>
+                    </div>
+                    <div class="globe-rings">
+                        <div class="ring ring-1"></div>
+                        <div class="ring ring-2"></div>
+                        <div class="ring ring-3"></div>
+                    </div>
+                </div>
+            </div>
+            <div class="network-particles">
+                <div class="particle particle-1"></div>
+                <div class="particle particle-2"></div>
+                <div class="particle particle-3"></div>
+                <div class="particle particle-4"></div>
+                <div class="particle particle-5"></div>
+            </div>
+        </div>
+        <div class="hero-content">
+            <div class="brand-title">
+                <h1>
+                    <span class="brand-icon">🌐</span>
+                    <span class="brand-text">Azure Service Tags Watcher</span>
+                </h1>
+                <p class="hero-subtitle">Real-time monitoring of Azure Service Tags and IP range changes across the globe</p>
+            </div>
+            <div class="hero-stats">
+                <div class="hero-stat">
+                    <span class="stat-number" id="heroTotalServices">...</span>
+                    <span class="stat-label">Services</span>
+                </div>
+                <div class="hero-stat">
+                    <span class="stat-number" id="heroTotalRanges">...</span>
+                    <span class="stat-label">IP Ranges</span>
+                </div>
+                <div class="hero-stat">
+                    <span class="stat-number" id="heroRegions">51</span>
+                    <span class="stat-label">Regions</span>
+                </div>
+            </div>
             <div class="last-updated">
+                <span class="update-icon">🕐</span>
                 Last updated: <span id="lastUpdated">Loading...</span>
             </div>
-        </header>
+        </div>
+    </header>
+
+    <main class="main-content">
+        <div class="container">
 
         <!-- Loading State -->
         <div id="loadingState" class="loading">
@@ -36,69 +86,85 @@
             <p>Please try refreshing the page or check back later.</p>
         </div>
 
-        <!-- Main Dashboard -->
-        <div id="dashboard" class="hidden">
-            <!-- Stats Cards -->
-            <div class="stats-grid">
-                <div class="stat-card">
-                    <div class="stat-icon">🏷️</div>
-                    <div class="stat-content">
-                        <h3 id="totalServices">0</h3>
-                        <p>Total Services</p>
+            <!-- Dashboard Content -->
+            <div id="dashboard" class="dashboard hidden">
+                <!-- Quick Stats Overview -->
+                <section class="stats-overview">
+                    <div class="stats-grid">
+                        <article class="stat-card">
+                            <div class="stat-icon">🏷️</div>
+                            <div class="stat-content">
+                                <h3 id="totalServices">0</h3>
+                                <p>Total Services</p>
+                            </div>
+                        </article>
+                        <article class="stat-card">
+                            <div class="stat-icon">📊</div>
+                            <div class="stat-content">
+                                <h3 id="totalIPRanges">0</h3>
+                                <p>Total IP Ranges</p>
+                            </div>
+                        </article>
+                        <article class="stat-card">
+                            <div class="stat-icon">📈</div>
+                            <div class="stat-content">
+                                <h3 id="changesThisWeek">0</h3>
+                                <p>Changes This Week</p>
+                            </div>
+                        </article>
+                        <article class="stat-card">
+                            <div class="stat-icon">🔄</div>
+                            <div class="stat-content">
+                                <h3 id="ipChanges">0</h3>
+                                <p>IP Range Changes</p>
+                            </div>
+                        </article>
                     </div>
-                </div>
-                <div class="stat-card">
-                    <div class="stat-icon">📊</div>
-                    <div class="stat-content">
-                        <h3 id="totalIPRanges">0</h3>
-                        <p>Total IP Ranges</p>
-                    </div>
-                </div>
-                <div class="stat-card">
-                    <div class="stat-icon">📈</div>
-                    <div class="stat-content">
-                        <h3 id="changesThisWeek">0</h3>
-                        <p>Changes This Week</p>
-                    </div>
-                </div>
-                <div class="stat-card">
-                    <div class="stat-icon">🔄</div>
-                    <div class="stat-content">
-                        <h3 id="ipChanges">0</h3>
-                        <p>IP Range Changes</p>
-                    </div>
-                </div>
-            </div>
+                </section>
 
-            <!-- Search Section -->
-            <div class="search-section">
-                <h2>🔍 Search Services</h2>
-                <div class="search-container">
-                    <input type="text" id="serviceSearch"
-                        placeholder="Search Azure services (e.g. Storage, SQL, WestEurope)...">
-                    <button id="clearSearch" class="clear-btn">Clear</button>
-                </div>
-                <div id="searchResults" class="search-results"></div>
-            </div>
+                <!-- Service Search -->
+                <section class="search-section">
+                    <header class="section-header">
+                        <h2>🔍 Search Services</h2>
+                        <p>Find specific Azure services and their configurations</p>
+                    </header>
+                    <div class="search-container">
+                        <input type="search" id="serviceSearch" 
+                            placeholder="Search Azure services (e.g. Storage, SQL, WestEurope)..."
+                            aria-label="Search Azure services">
+                        <button id="clearSearch" class="clear-btn" aria-label="Clear search">Clear</button>
+                    </div>
+                    <div id="searchResults" class="search-results" role="region" aria-label="Search Results"></div>
+                </section>
 
-            <!-- Charts Section -->
-            <div class="charts-section">
-                <div class="chart-container">
-                    <h3>📈 Most Active Services</h3>
-                    <canvas id="activeServicesChart"></canvas>
-                </div>
-                <div class="chart-container">
-                    <h3>🗺️ Changes by Region</h3>
-                    <canvas id="regionalChart"></canvas>
-                </div>
-            </div>
+                <!-- Analytics Dashboard -->
+                <section class="analytics-section">
+                    <header class="section-header">
+                        <h2>📊 Analytics Dashboard</h2>
+                        <p>Visual insights into service activity and regional changes</p>
+                    </header>
+                    <div class="charts-grid">
+                        <article class="chart-container">
+                            <h3>📈 Most Active Services</h3>
+                            <canvas id="activeServicesChart" role="img" aria-label="Chart showing most active Azure services"></canvas>
+                        </article>
+                        <article class="chart-container">
+                            <h3>🗺️ Changes by Region</h3>
+                            <canvas id="regionalChart" role="img" aria-label="Regional changes visualization"></canvas>
+                        </article>
+                    </div>
+                </section>
 
-            <!-- Recent Changes -->
-            <div class="changes-section">
-                <h2>🔄 Recent Changes</h2>
-                <div id="recentChanges" class="changes-container">
-                    <!-- Changes will be populated by JavaScript -->
-                </div>
+                <!-- Change History -->
+                <section class="changes-section">
+                    <header class="section-header">
+                        <h2>🔄 Recent Changes</h2>
+                        <p>Latest updates to Azure service tags and IP ranges</p>
+                    </header>
+                    <div id="recentChanges" class="changes-container" role="region" aria-label="Recent Changes">
+                        <!-- Changes will be populated by JavaScript -->
+                    </div>
+                </section>
             </div>
 
             <!-- Service Details Modal -->
@@ -122,17 +188,30 @@
                 </div>
             </div>
         </div>
+    </main>
 
-        <!-- Footer -->
-        <footer class="footer">
-            <p>
-                Data source: <a href="https://www.microsoft.com/en-us/download/details.aspx?id=56519"
-                    target="_blank">Microsoft Azure IP Ranges</a> |
-                Updated weekly via GitHub Actions |
-                <a href="https://github.com/eliaquimbrandao/azure-service-tags-watcher" target="_blank">View Source</a>
-            </p>
-        </footer>
-    </div>
+    <!-- Footer -->
+    <footer class="footer">
+        <div class="footer-content">
+            <div class="footer-section">
+                <h4>Data Source</h4>
+                <p><a href="https://www.microsoft.com/en-us/download/details.aspx?id=56519" 
+                    target="_blank" rel="noopener noreferrer">Microsoft Azure IP Ranges</a></p>
+            </div>
+            <div class="footer-section">
+                <h4>Automation</h4>
+                <p>Updated weekly via GitHub Actions</p>
+            </div>
+            <div class="footer-section">
+                <h4>Open Source</h4>
+                <p><a href="https://github.com/eliaquimbrandao/azure-service-tags-watcher" 
+                    target="_blank" rel="noopener noreferrer">View Source Code</a></p>
+            </div>
+        </div>
+        <div class="footer-bottom">
+            <p>&copy; 2025 Azure Service Tags Watcher | Built with ❤️ for the Azure community</p>
+        </div>
+    </footer>
 
     <script src="dashboard.js"></script>
 </body>
