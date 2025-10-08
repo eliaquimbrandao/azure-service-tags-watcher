@@ -7,6 +7,12 @@ on:
 
   # Allow manual triggering
   workflow_dispatch:
+    inputs:
+      baseline_setup:
+        description: 'Setup initial baseline (first run)'
+        required: false
+        default: false
+        type: boolean
 
 jobs:
   update-data:
@@ -32,7 +38,14 @@ jobs:
           pip install requests
 
       - name: Run Azure Service Tag Watcher
-        run: python scripts/azure_watcher.py
+        run: |
+          if [ "${{ github.event.inputs.baseline_setup }}" == "true" ]; then
+            echo "🎯 Setting up initial baseline - no changes will be recorded"
+            python scripts/azure_watcher.py --baseline
+          else
+            echo "📊 Running regular update - detecting changes"
+            python scripts/azure_watcher.py
+          fi
 
       - name: Configure Git
         run: |
@@ -45,6 +58,10 @@ jobs:
           if git diff --staged --quiet; then
             echo "No changes to commit"
           else
-            git commit -m "Update Azure Service Tags data - $(date '+%Y-%m-%d %H:%M:%S UTC')"
+            if [ "${{ github.event.inputs.baseline_setup }}" == "true" ]; then
+              git commit -m "📊 Establish Azure Service Tags baseline - $(date '+%Y-%m-%d %H:%M:%S UTC')"
+            else
+              git commit -m "📈 Update Azure Service Tags data - $(date '+%Y-%m-%d %H:%M:%S UTC')"
+            fi
             git push
           fi

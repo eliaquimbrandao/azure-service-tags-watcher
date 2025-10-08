@@ -17,6 +17,7 @@ import re
 import requests
 import hashlib
 import time
+import argparse
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Dict, List, Optional, Tuple
@@ -279,17 +280,32 @@ def cleanup_old_files(keep_weeks: int = 12):
 
 def main():
     """Main execution function."""
+    # Parse command line arguments
+    parser = argparse.ArgumentParser(description='Azure Service Tags Watcher - Dashboard Data Generator')
+    parser.add_argument('--baseline', action='store_true', 
+                       help='Setup initial baseline (no changes recorded)')
+    args = parser.parse_args()
+    
     try:
-        logging.info("=== Azure Service Tags Watcher Update ===")
+        if args.baseline:
+            logging.info("=== Azure Service Tags Watcher - Baseline Setup ===")
+            print("🎯 Setting up initial baseline")
+        else:
+            logging.info("=== Azure Service Tags Watcher Update ===")
         
         # Download latest data
         new_data = download_latest_json()
         
-        # Load previous data for comparison
-        old_data = load_previous_data()
-        
-        # Detect changes
-        changes = detect_changes(old_data, new_data)
+        if args.baseline:
+            # For baseline setup, don't load previous data or detect changes
+            logging.info("Baseline mode: Skipping change detection")
+            old_data = None
+            changes = []
+        else:
+            # Load previous data for comparison
+            old_data = load_previous_data()
+            # Detect changes
+            changes = detect_changes(old_data, new_data)
         
         # Generate summary statistics
         summary = generate_summary_stats(new_data, changes)
@@ -300,20 +316,25 @@ def main():
         # Cleanup old files
         cleanup_old_files()
         
-        logging.info("=== Update completed successfully ===")
-        
-        # Print summary for GitHub Actions log
-        print(f"✅ Successfully updated Azure Service Tags data")
-        print(f"📊 Total services: {summary['total_services']}")
-        print(f"🔢 Total IP ranges: {summary['total_ip_ranges']}")
-        print(f"📈 Changes detected: {summary['changes_this_week']}")
-        
-        if changes:
-            print(f"🔄 IP changes: {summary['ip_changes']}")
-            print(f"➕ New services: {summary['service_additions']}")
-            print(f"➖ Removed services: {summary['service_removals']}")
+        if args.baseline:
+            logging.info("=== Baseline setup completed successfully ===")
+            print("✅ Successfully established baseline data")
+            print(f"📊 Total services: {summary['total_services']}")
+            print(f"🔢 Total IP ranges: {summary['total_ip_ranges']}")
+            print("🎯 Next weekly run will detect changes from this baseline")
         else:
-            print("✨ No changes detected this week")
+            logging.info("=== Update completed successfully ===")
+            print(f"✅ Successfully updated Azure Service Tags data")
+            print(f"📊 Total services: {summary['total_services']}")
+            print(f"🔢 Total IP ranges: {summary['total_ip_ranges']}")
+            print(f"📈 Changes detected: {summary['changes_this_week']}")
+            
+            if changes:
+                print(f"🔄 IP changes: {summary['ip_changes']}")
+                print(f"➕ New services: {summary['service_additions']}")
+                print(f"➖ Removed services: {summary['service_removals']}")
+            else:
+                print("✨ No changes detected this week")
             
     except Exception as e:
         logging.error(f"Update failed: {e}")
