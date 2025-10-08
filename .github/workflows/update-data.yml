@@ -1,0 +1,47 @@
+name: Update Azure Service Tags
+
+on:
+  schedule:
+    # Runs every Monday at 7:00 AM UTC
+    - cron: "0 7 * * 1"
+
+  # Allow manual triggering
+  workflow_dispatch:
+
+jobs:
+  update-data:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: "3.11"
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install requests
+
+      - name: Run Azure Service Tag Watcher
+        run: python scripts/azure_watcher.py
+
+      - name: Configure Git
+        run: |
+          git config --local user.email "action@github.com"
+          git config --local user.name "GitHub Action"
+
+      - name: Commit and push changes
+        run: |
+          git add data/
+          if git diff --staged --quiet; then
+            echo "No changes to commit"
+          else
+            git commit -m "Update Azure Service Tags data - $(date '+%Y-%m-%d %H:%M:%S UTC')"
+            git push
+          fi

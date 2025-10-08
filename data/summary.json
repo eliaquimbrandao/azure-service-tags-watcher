@@ -1,0 +1,12 @@
+{
+    "last_updated": "1970-01-01T00:00:00Z",
+    "total_services": 0,
+    "total_ip_ranges": 0,
+    "changes_this_week": 0,
+    "ip_changes": 0,
+    "service_additions": 0,
+    "service_removals": 0,
+    "regional_changes": {},
+    "top_active_services": [],
+    "note": "This file will be populated by GitHub Actions on first run"
+}

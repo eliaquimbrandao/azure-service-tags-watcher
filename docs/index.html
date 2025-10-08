@@ -1,0 +1,137 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Azure Service Tags Dashboard</title>
+    <link rel="stylesheet" href="style.css">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/date-fns/1.30.1/date_fns.min.js"></script>
+</head>
+
+<body>
+    <div class="container">
+        <!-- Header -->
+        <header class="header">
+            <h1>🌐 Azure Service Tags Dashboard</h1>
+            <p>Real-time monitoring of Azure Service Tags and IP range changes</p>
+            <div class="last-updated">
+                Last updated: <span id="lastUpdated">Loading...</span>
+            </div>
+        </header>
+
+        <!-- Loading State -->
+        <div id="loadingState" class="loading">
+            <div class="spinner"></div>
+            <p>Loading Azure Service Tags data...</p>
+        </div>
+
+        <!-- Error State -->
+        <div id="errorState" class="error hidden">
+            <h3>⚠️ Unable to load data</h3>
+            <p>Please try refreshing the page or check back later.</p>
+        </div>
+
+        <!-- Main Dashboard -->
+        <div id="dashboard" class="hidden">
+            <!-- Stats Cards -->
+            <div class="stats-grid">
+                <div class="stat-card">
+                    <div class="stat-icon">🏷️</div>
+                    <div class="stat-content">
+                        <h3 id="totalServices">0</h3>
+                        <p>Total Services</p>
+                    </div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-icon">📊</div>
+                    <div class="stat-content">
+                        <h3 id="totalIPRanges">0</h3>
+                        <p>Total IP Ranges</p>
+                    </div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-icon">📈</div>
+                    <div class="stat-content">
+                        <h3 id="changesThisWeek">0</h3>
+                        <p>Changes This Week</p>
+                    </div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-icon">🔄</div>
+                    <div class="stat-content">
+                        <h3 id="ipChanges">0</h3>
+                        <p>IP Range Changes</p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Search Section -->
+            <div class="search-section">
+                <h2>🔍 Search Services</h2>
+                <div class="search-container">
+                    <input type="text" id="serviceSearch"
+                        placeholder="Search Azure services (e.g. Storage, SQL, WestEurope)...">
+                    <button id="clearSearch" class="clear-btn">Clear</button>
+                </div>
+                <div id="searchResults" class="search-results"></div>
+            </div>
+
+            <!-- Charts Section -->
+            <div class="charts-section">
+                <div class="chart-container">
+                    <h3>📈 Most Active Services</h3>
+                    <canvas id="activeServicesChart"></canvas>
+                </div>
+                <div class="chart-container">
+                    <h3>🗺️ Changes by Region</h3>
+                    <canvas id="regionalChart"></canvas>
+                </div>
+            </div>
+
+            <!-- Recent Changes -->
+            <div class="changes-section">
+                <h2>🔄 Recent Changes</h2>
+                <div id="recentChanges" class="changes-container">
+                    <!-- Changes will be populated by JavaScript -->
+                </div>
+            </div>
+
+            <!-- Service Details Modal -->
+            <div id="serviceModal" class="modal hidden">
+                <div class="modal-content">
+                    <div class="modal-header">
+                        <h3 id="modalServiceName">Service Details</h3>
+                        <button id="closeModal" class="close-btn">&times;</button>
+                    </div>
+                    <div class="modal-body">
+                        <div class="service-info">
+                            <p><strong>Region:</strong> <span id="modalRegion">-</span></p>
+                            <p><strong>System Service:</strong> <span id="modalSystemService">-</span></p>
+                            <p><strong>IP Ranges:</strong> <span id="modalIPCount">-</span></p>
+                        </div>
+                        <div class="ip-ranges">
+                            <h4>Current IP Ranges:</h4>
+                            <div id="modalIPRanges" class="ip-list"></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Footer -->
+        <footer class="footer">
+            <p>
+                Data source: <a href="https://www.microsoft.com/en-us/download/details.aspx?id=56519"
+                    target="_blank">Microsoft Azure IP Ranges</a> |
+                Updated weekly via GitHub Actions |
+                <a href="https://github.com/yourusername/azure-service-tags-dashboard" target="_blank">View Source</a>
+            </p>
+        </footer>
+    </div>
+
+    <script src="dashboard.js"></script>
+</body>
+
+</html>
