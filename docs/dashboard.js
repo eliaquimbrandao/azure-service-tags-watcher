@@ -178,7 +178,7 @@ class AzureServiceTagsDashboard {
         const regionsHtml = sortedRegions.map(([region, count]) => {
             const displayName = region || 'Global';
             const flagEmoji = this.getRegionFlag(region);
-            
+
             return `
                 <div class="region-item" data-region="${region}" onclick="dashboard.showRegionChanges('${region}', '${displayName}', ${count})">
                     <div class="region-info">
@@ -206,13 +206,18 @@ class AzureServiceTagsDashboard {
     getRegionFlag(region) {
         if (!region) return '🌍';
         
+        console.log(`Getting flag for region: "${region}"`); // Debug log
+
         const regionFlags = {
+            // Direct matches first
             'australiacentral': '🇦🇺', 'australiacentral2': '🇦🇺', 'australiaeast': '🇦🇺', 'australiasoutheast': '🇦🇺',
             'brazilsouth': '🇧🇷', 'brazilse': '🇧🇷',
             'canadacentral': '🇨🇦', 'canadaeast': '🇨🇦',
             'eastasia': '🌏', 'southeastasia': '🌏',
-            'eastus': '🇺🇸', 'eastus2': '🇺🇸', 'westus': '🇺🇸', 'westus2': '🇺🇸', 'westus3': '🇺🇸', 'centralus': '🇺🇸', 'northcentralus': '🇺🇸', 'southcentralus': '🇺🇸',
-            'northeurope': '🇪🇺', 'westeurope': '🇪🇺', 'francecentral': '🇫🇷', 'francesouth': '🇫🇷',
+            'eastus': '🇺🇸', 'eastus2': '🇺🇸', 'westus': '🇺🇸', 'westus2': '🇺🇸', 'westus3': '🇺🇸', 
+            'centralus': '🇺🇸', 'northcentralus': '🇺🇸', 'southcentralus': '🇺🇸',
+            'northeurope': '🇪🇺', 'westeurope': '🇪🇺', 
+            'francecentral': '🇫🇷', 'francesouth': '🇫🇷',
             'germanywestcentral': '🇩🇪', 'germanynorth': '🇩🇪',
             'italynorth': '🇮🇹',
             'japaneast': '🇯🇵', 'japanwest': '🇯🇵',
@@ -222,21 +227,42 @@ class AzureServiceTagsDashboard {
             'switzerlandnorth': '🇨🇭', 'switzerlandwest': '🇨🇭',
             'uksouth': '🇬🇧', 'ukwest': '🇬🇧',
             'uaenorth': '🇦🇪', 'uaecentral': '🇦🇪',
-            'indiacentral': '🇮🇳', 'indiasouth': '🇮🇳', 'indiawest': '🇮🇳'
+            'indiacentral': '🇮🇳', 'indiasouth': '🇮🇳', 'indiawest': '🇮🇳',
+            'chinaeast': '🇨🇳', 'chinanorth': '🇨🇳',
+            'spaincentral': '🇪🇸',
+            'swedencentral': '🇸🇪',
+            'polandcentral': '🇵🇱',
+            'qatarcentral': '🇶🇦',
+            'mexicocentral': '🇲🇽',
+            'israelcentral': '🇮🇱',
+            'austriaeast': '🇦🇹',
+            'belgiumcentral': '🇧🇪',
+            'chilecentral': '🇨🇱',
+            'taiwannorth': '🇹🇼'
         };
-        
+
+        // Try exact match first
+        const regionLower = region.toLowerCase();
+        if (regionFlags[regionLower]) {
+            console.log(`Found exact match for ${region}: ${regionFlags[regionLower]}`);
+            return regionFlags[regionLower];
+        }
+
+        // Try partial matches for complex region names
         for (const [key, flag] of Object.entries(regionFlags)) {
-            if (region.toLowerCase().includes(key)) {
+            if (regionLower.includes(key.toLowerCase()) || key.toLowerCase().includes(regionLower)) {
+                console.log(`Found partial match for ${region} -> ${key}: ${flag}`);
                 return flag;
             }
         }
-        
+
+        console.log(`No flag found for region: ${region}, using default 🌐`);
         return '🌐'; // Default for unknown regions
     }
 
     showRegionChanges(region, displayName, changeCount) {
         const changes = this.changesData.changes || [];
-        const regionChanges = changes.filter(change => 
+        const regionChanges = changes.filter(change =>
             (change.region || '') === region
         );
 
@@ -273,7 +299,7 @@ class AzureServiceTagsDashboard {
                 this.closeRegionModal();
             }
         };
-        
+
         document.body.appendChild(modalOverlay);
         this.currentModal = modalOverlay;
     }
