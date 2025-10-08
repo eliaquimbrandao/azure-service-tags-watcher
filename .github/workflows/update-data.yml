@@ -9,7 +9,7 @@ on:
   workflow_dispatch:
     inputs:
       baseline_setup:
-        description: 'Setup initial baseline (first run)'
+        description: "Setup initial baseline (first run)"
         required: false
         default: false
         type: boolean

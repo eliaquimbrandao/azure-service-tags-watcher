@@ -48,7 +48,8 @@
                     <span class="brand-icon">🌐</span>
                     <span class="brand-text">Azure Service Tags Watcher</span>
                 </h1>
-                <p class="hero-subtitle">Real-time monitoring of Azure Service Tags and IP range changes across the globe</p>
+                <p class="hero-subtitle">Real-time monitoring of Azure Service Tags and IP range changes across the
+                    globe</p>
             </div>
             <div class="hero-stats">
                 <div class="hero-stat">
@@ -74,17 +75,17 @@
     <main class="main-content">
         <div class="container">
 
-        <!-- Loading State -->
-        <div id="loadingState" class="loading">
-            <div class="spinner"></div>
-            <p>Loading Azure Service Tags data...</p>
-        </div>
+            <!-- Loading State -->
+            <div id="loadingState" class="loading">
+                <div class="spinner"></div>
+                <p>Loading Azure Service Tags data...</p>
+            </div>
 
-        <!-- Error State -->
-        <div id="errorState" class="error hidden">
-            <h3>⚠️ Unable to load data</h3>
-            <p>Please try refreshing the page or check back later.</p>
-        </div>
+            <!-- Error State -->
+            <div id="errorState" class="error hidden">
+                <h3>⚠️ Unable to load data</h3>
+                <p>Please try refreshing the page or check back later.</p>
+            </div>
 
             <!-- Dashboard Content -->
             <div id="dashboard" class="dashboard hidden">
@@ -129,7 +130,7 @@
                         <p>Find specific Azure services and their configurations</p>
                     </header>
                     <div class="search-container">
-                        <input type="search" id="serviceSearch" 
+                        <input type="search" id="serviceSearch"
                             placeholder="Search Azure services (e.g. Storage, SQL, WestEurope)..."
                             aria-label="Search Azure services">
                         <button id="clearSearch" class="clear-btn" aria-label="Clear search">Clear</button>
@@ -146,7 +147,8 @@
                     <div class="charts-grid">
                         <article class="chart-container">
                             <h3>📈 Most Active Services</h3>
-                            <canvas id="activeServicesChart" role="img" aria-label="Chart showing most active Azure services"></canvas>
+                            <canvas id="activeServicesChart" role="img"
+                                aria-label="Chart showing most active Azure services"></canvas>
                         </article>
                         <article class="chart-container">
                             <h3>🗺️ Changes by Region</h3>
@@ -167,26 +169,7 @@
                 </section>
             </div>
 
-            <!-- Service Details Modal -->
-            <div id="serviceModal" class="modal hidden">
-                <div class="modal-content">
-                    <div class="modal-header">
-                        <h3 id="modalServiceName">Service Details</h3>
-                        <button id="closeModal" class="close-btn">&times;</button>
-                    </div>
-                    <div class="modal-body">
-                        <div class="service-info">
-                            <p><strong>Region:</strong> <span id="modalRegion">-</span></p>
-                            <p><strong>System Service:</strong> <span id="modalSystemService">-</span></p>
-                            <p><strong>IP Ranges:</strong> <span id="modalIPCount">-</span></p>
-                        </div>
-                        <div class="ip-ranges">
-                            <h4>Current IP Ranges:</h4>
-                            <div id="modalIPRanges" class="ip-list"></div>
-                        </div>
-                    </div>
-                </div>
-            </div>
+
         </div>
     </main>
 
@@ -195,8 +178,8 @@
         <div class="footer-content">
             <div class="footer-section">
                 <h4>Data Source</h4>
-                <p><a href="https://www.microsoft.com/en-us/download/details.aspx?id=56519" 
-                    target="_blank" rel="noopener noreferrer">Microsoft Azure IP Ranges</a></p>
+                <p><a href="https://www.microsoft.com/en-us/download/details.aspx?id=56519" target="_blank"
+                        rel="noopener noreferrer">Microsoft Azure IP Ranges</a></p>
             </div>
             <div class="footer-section">
                 <h4>Automation</h4>
@@ -204,8 +187,8 @@
             </div>
             <div class="footer-section">
                 <h4>Open Source</h4>
-                <p><a href="https://github.com/eliaquimbrandao/azure-service-tags-watcher" 
-                    target="_blank" rel="noopener noreferrer">View Source Code</a></p>
+                <p><a href="https://github.com/eliaquimbrandao/azure-service-tags-watcher" target="_blank"
+                        rel="noopener noreferrer">View Source Code</a></p>
             </div>
         </div>
         <div class="footer-bottom">

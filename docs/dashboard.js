@@ -89,12 +89,24 @@ class AzureServiceTagsDashboard {
 
     async init() {
         try {
+            // Ensure all modals are hidden initially
+            this.hideAllModals();
+
             await this.loadData();
             this.renderDashboard();
             this.setupEventListeners();
         } catch (error) {
             this.showError(error);
         }
+    }
+
+    hideAllModals() {
+        // Hide all modals on page load
+        const modals = document.querySelectorAll('.modal');
+        modals.forEach(modal => {
+            modal.classList.add('hidden');
+        });
+        console.log('All modals hidden on initialization');
     }
 
     async loadData() {
@@ -174,7 +186,7 @@ class AzureServiceTagsDashboard {
         if (lastUpdated) {
             const date = new Date(lastUpdated);
             const formattedDate = date.toLocaleString();
-            
+
             // Update both hero and main sections
             document.getElementById('lastUpdated').textContent = formattedDate;
         }
@@ -507,7 +519,7 @@ class AzureServiceTagsDashboard {
             const ipCount = props.addressPrefixes?.length || 0;
 
             return `
-                <div class="service-item" onclick="dashboard.showServiceDetails('${service.name}')">
+                <div class="service-item">
                     <div class="service-name">${service.name}</div>
                     <div class="service-details">
                         Region: ${getRegionDisplayName(props.region)} | 
@@ -522,26 +534,55 @@ class AzureServiceTagsDashboard {
     }
 
     showServiceDetails(serviceName) {
+        // Validate inputs
+        if (!serviceName || !this.currentData || !this.currentData.values) {
+            console.warn('Invalid service name or data not loaded');
+            return;
+        }
+
         const service = this.currentData.values.find(s => s.name === serviceName);
-        if (!service) return;
+        if (!service) {
+            console.warn('Service not found:', serviceName);
+            return;
+        }
 
         const modal = document.getElementById('serviceModal');
+        if (!modal) {
+            console.error('Service modal not found in DOM');
+            return;
+        }
+
         const props = service.properties || {};
 
-        document.getElementById('modalServiceName').textContent = serviceName;
-        document.getElementById('modalRegion').textContent = getRegionDisplayName(props.region);
-        document.getElementById('modalSystemService').textContent = props.systemService || 'N/A';
-        document.getElementById('modalIPCount').textContent =
-            (props.addressPrefixes?.length || 0).toLocaleString();
+        // Update modal content
+        const elements = {
+            modalServiceName: serviceName,
+            modalRegion: getRegionDisplayName(props.region),
+            modalSystemService: props.systemService || 'N/A',
+            modalIPCount: (props.addressPrefixes?.length || 0).toLocaleString()
+        };
 
-        const ipRanges = props.addressPrefixes || [];
-        const ipRangesHtml = ipRanges.length > 0 ?
-            ipRanges.map(ip => `<div>${ip}</div>`).join('') :
-            '<div>No IP ranges available</div>';
+        // Safely update each element
+        Object.entries(elements).forEach(([id, value]) => {
+            const element = document.getElementById(id);
+            if (element) {
+                element.textContent = value;
+            }
+        });
 
-        document.getElementById('modalIPRanges').innerHTML = ipRangesHtml;
+        // Update IP ranges
+        const ipRangesElement = document.getElementById('modalIPRanges');
+        if (ipRangesElement) {
+            const ipRanges = props.addressPrefixes || [];
+            const ipRangesHtml = ipRanges.length > 0 ?
+                ipRanges.map(ip => `<div>${ip}</div>`).join('') :
+                '<div>No IP ranges available</div>';
+            ipRangesElement.innerHTML = ipRangesHtml;
+        }
 
+        // Show modal
         modal.classList.remove('hidden');
+        console.log('Service modal opened for:', serviceName);
     }
 
     setupEventListeners() {
@@ -549,21 +590,45 @@ class AzureServiceTagsDashboard {
         const modal = document.getElementById('serviceModal');
         const closeBtn = document.getElementById('closeModal');
 
-        closeBtn.addEventListener('click', () => {
+        // Ensure modal is hidden initially
+        if (modal) {
             modal.classList.add('hidden');
-        });
+        }
 
-        modal.addEventListener('click', (e) => {
-            if (e.target === modal) {
-                modal.classList.add('hidden');
-            }
-        });
+        if (closeBtn) {
+            closeBtn.addEventListener('click', (e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                console.log('Close button clicked');
+                if (modal) {
+                    modal.classList.add('hidden');
+                }
+            });
+        }
+
+        if (modal) {
+            modal.addEventListener('click', (e) => {
+                if (e.target === modal) {
+                    console.log('Modal backdrop clicked');
+                    modal.classList.add('hidden');
+                }
+            });
+        }
 
         document.addEventListener('keydown', (e) => {
-            if (e.key === 'Escape') {
+            if (e.key === 'Escape' && modal && !modal.classList.contains('hidden')) {
+                console.log('Escape key pressed');
                 modal.classList.add('hidden');
             }
         });
+
+        // Add a global close function for debugging
+        window.closeServiceModal = () => {
+            if (modal) {
+                modal.classList.add('hidden');
+                console.log('Modal closed via global function');
+            }
+        };
     }
 
     showError(error) {
