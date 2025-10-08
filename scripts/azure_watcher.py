@@ -80,7 +80,7 @@ def calculate_data_hash(data: Dict) -> str:
 
 def load_previous_data() -> Optional[Dict]:
     """Load the previous week's data for comparison."""
-    current_file = Path('data/current.json')
+    current_file = Path('docs/data/current.json')
     if current_file.exists():
         try:
             with open(current_file, 'r') as f:
@@ -201,17 +201,17 @@ def save_data_files(data: Dict, changes: List[Dict], summary: Dict):
     today = datetime.now(timezone.utc).strftime('%Y-%m-%d')
     
     # Ensure data directories exist
-    Path('data').mkdir(exist_ok=True)
-    Path('data/history').mkdir(exist_ok=True)
-    Path('data/changes').mkdir(exist_ok=True)
+    Path('docs/data').mkdir(exist_ok=True)
+    Path('docs/data/history').mkdir(exist_ok=True)
+    Path('docs/data/changes').mkdir(exist_ok=True)
     
     # Save current data
-    with open('data/current.json', 'w') as f:
+    with open('docs/data/current.json', 'w') as f:
         json.dump(data, f, indent=2)
     logging.info("Saved current.json")
     
     # Save historical snapshot
-    history_file = f'data/history/{today}.json'
+    history_file = f'docs/data/history/{today}.json'
     with open(history_file, 'w') as f:
         json.dump(data, f, indent=2)
     logging.info(f"Saved {history_file}")
@@ -226,13 +226,13 @@ def save_data_files(data: Dict, changes: List[Dict], summary: Dict):
         }
         
         # Save dated changes file
-        changes_file = f'data/changes/{today}-changes.json'
+        changes_file = f'docs/data/changes/{today}-changes.json'
         with open(changes_file, 'w') as f:
             json.dump(changes_data, f, indent=2)
         logging.info(f"Saved {changes_file}")
         
         # Save latest changes (for dashboard)
-        with open('data/changes/latest-changes.json', 'w') as f:
+        with open('docs/data/changes/latest-changes.json', 'w') as f:
             json.dump(changes_data, f, indent=2)
         logging.info("Saved latest-changes.json")
     else:
@@ -244,12 +244,12 @@ def save_data_files(data: Dict, changes: List[Dict], summary: Dict):
             'generated_at': datetime.now(timezone.utc).isoformat(),
             'message': 'No changes detected this week'
         }
-        with open('data/changes/latest-changes.json', 'w') as f:
+        with open('docs/data/changes/latest-changes.json', 'w') as f:
             json.dump(empty_changes, f, indent=2)
         logging.info("No changes detected - saved empty changes file")
     
     # Save summary statistics
-    with open('data/summary.json', 'w') as f:
+    with open('docs/data/summary.json', 'w') as f:
         json.dump(summary, f, indent=2)
     logging.info("Saved summary.json")
 
@@ -260,8 +260,8 @@ def cleanup_old_files(keep_weeks: int = 12):
     
     cutoff_date = datetime.now() - timedelta(weeks=keep_weeks)
     
-    history_files = glob.glob('data/history/*.json')
-    changes_files = glob.glob('data/changes/*-changes.json')
+    history_files = glob.glob('docs/data/history/*.json')
+    changes_files = glob.glob('docs/data/changes/*-changes.json')
     
     for file_path in history_files + changes_files:
         try:

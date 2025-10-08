@@ -12,8 +12,8 @@ jobs:
   update-data:
     runs-on: ubuntu-latest
     permissions:
-      contents: write  # Allow pushing to repository
-      actions: read    # Allow reading workflow files
+      contents: write # Allow pushing to repository
+      actions: read # Allow reading workflow files
 
     steps:
       - name: Checkout repository
@@ -41,7 +41,7 @@ jobs:
 
       - name: Commit and push changes
         run: |
-          git add data/
+          git add docs/data/
           if git diff --staged --quiet; then
             echo "No changes to commit"
           else
