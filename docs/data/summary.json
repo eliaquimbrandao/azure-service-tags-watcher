@@ -1,11 +1,111 @@
 {
-  "last_updated": "2025-10-08T14:16:40.528851+00:00",
+  "last_updated": "2025-10-10T10:29:05.516537+00:00",
   "total_services": 3039,
-  "total_ip_ranges": 92436,
-  "changes_this_week": 0,
-  "ip_changes": 0,
+  "total_ip_ranges": 92929,
+  "changes_this_week": 128,
+  "ip_changes": 128,
   "service_additions": 0,
   "service_removals": 0,
-  "regional_changes": {},
-  "top_active_services": []
+  "regional_changes": {
+    "": 57,
+    "southcentralus": 2,
+    "australiacentral": 1,
+    "australiacentral2": 1,
+    "australiaeast": 1,
+    "australiasoutheast": 2,
+    "austriaeast": 1,
+    "belgiumcentral": 2,
+    "brazilsouth": 1,
+    "brazilse": 1,
+    "canadacentral": 1,
+    "centralus": 2,
+    "centraluseuap": 1,
+    "eastasia": 1,
+    "eastus": 2,
+    "eastus2": 2,
+    "eastus2euap": 1,
+    "centralfrance": 2,
+    "southfrance": 1,
+    "germanyn": 1,
+    "germanywc": 1,
+    "israelcentral": 1,
+    "italynorth": 1,
+    "japaneast": 1,
+    "japanwest": 1,
+    "jioindiacentral": 1,
+    "koreacentral": 1,
+    "koreasouth": 1,
+    "mexicocentral": 1,
+    "newzealandnorth": 1,
+    "northcentralus": 3,
+    "northeurope": 1,
+    "norwaye": 1,
+    "norwayw": 1,
+    "polandcentral": 1,
+    "southafricanorth": 1,
+    "southafricawest": 1,
+    "southcentralus2": 1,
+    "southindia": 1,
+    "southeastasia": 1,
+    "spaincentral": 1,
+    "swedencentral": 2,
+    "switzerlandn": 1,
+    "switzerlandw": 1,
+    "taiwannorth": 1,
+    "taiwannorthwest": 1,
+    "uaenorth": 1,
+    "uksouth": 1,
+    "ukwest": 1,
+    "westcentralus": 1,
+    "westeurope": 2,
+    "westus": 2,
+    "westus2": 2,
+    "westus3": 2,
+    "indonesiacentral": 1,
+    "malaysiawest": 1,
+    "chilec": 1,
+    "usstagec": 1
+  },
+  "top_active_services": [
+    {
+      "service": "AzureCloud",
+      "change_count": 89
+    },
+    {
+      "service": "AppServiceManagement",
+      "change_count": 59
+    },
+    {
+      "service": "AzureFrontDoor.Backend",
+      "change_count": 29
+    },
+    {
+      "service": "AzureMonitor",
+      "change_count": 18
+    },
+    {
+      "service": "CognitiveServicesManagement",
+      "change_count": 15
+    },
+    {
+      "service": "AzureCloud.westus3",
+      "change_count": 13
+    },
+    {
+      "service": "AzureCloud.eastus2",
+      "change_count": 12
+    },
+    {
+      "service": "PowerBI",
+      "change_count": 10
+    },
+    {
+      "service": "SqlManagement",
+      "change_count": 10
+    },
+    {
+      "service": "AzureContainerRegistry",
+      "change_count": 9
+    }
+  ]
 }
