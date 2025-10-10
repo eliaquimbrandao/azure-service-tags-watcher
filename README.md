@@ -120,32 +120,33 @@ No additional packages, databases, or external services needed!
 
 ### Main Dashboard
 
-- **Total Services**: Count of all Azure service tags (3000+)
 - **Total IP Ranges**: Number of individual IP ranges across all services  
 - **Weekly Changes**: Number of IP range changes detected this week
-- **Most Active Services Chart**: Bar chart showing services with frequent changes
-- **Regional Changes List**: Services organized by Azure region
+- **Region Changes**: Number of regions affected by IP changes this week
+- **Most Active Services Chart**: Paginated list showing services with frequent changes (with yellow 🟡 status for mixed IP changes)
+- **Regional Analysis**: Interactive region selection to view detailed service changes per region
 
 ### Service Search & Discovery
 
-- **Real-time search** through all 3000+ service tags
-- **Filter by region** (e.g., "WestEurope", "EastUS")  
-- **Filter by service** (e.g., "Storage", "SQL", "AzureCloud")
-- **Service details modal** - View current IP ranges for any service
-- **Instant results** - No page refresh needed
+- **Interactive stat cards** - Click on IP Ranges, Changes This Week, or Region Changes to see detailed modals
+- **Expandable IP lists** - View first 10 IPs with "Show more" button for longer lists
+- **Detailed change tracking** - See exact IPs added/removed with copy functionality
+- **Service details modal** - View current IP ranges for any service by clicking on service name
+- **Region drill-down** - Two-level modal: select region → see all services with IP changes in that region
 
 ### Change Tracking
 
 - **Weekly change detection** - Automated comparison with previous data
-- **Recent changes feed** - Latest additions/removals to IP ranges
+- **Visual status indicators** - 🟢 Green (additions only), 🔴 Red (removals only), 🟡 Yellow (mixed changes)
+- **Recent changes feed** - Paginated list of latest additions/removals to IP ranges
 - **Change statistics** - Count of services added, removed, or modified
 - **JSON data export** - All data accessible via API endpoints for automation
 
 ### Current Limitations
 
 - **Historical trends**: Only tracks week-over-week changes (no long-term charts yet)
-- **Per-service history**: No drill-down into individual service change history  
-- **Regional visualization**: List format rather than interactive map
+- **Per-service history**: No drill-down into individual service change history across multiple weeks  
+- **Search functionality**: No global search yet (planned for future release)
 
 ## 🎨 Customization
 

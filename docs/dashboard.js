@@ -167,9 +167,6 @@ class AzureServiceTagsDashboard {
 
     renderStats() {
         // Update stat cards
-        document.getElementById('totalServices').textContent =
-            this.summaryData.total_services?.toLocaleString() || '0';
-
         document.getElementById('totalIPRanges').textContent =
             this.summaryData.total_ip_ranges?.toLocaleString() || '0';
 
@@ -183,9 +180,6 @@ class AzureServiceTagsDashboard {
             regionsWithChanges.toLocaleString();
 
         // Update hero stats
-        document.getElementById('heroTotalServices').textContent =
-            this.summaryData.total_services?.toLocaleString() || '...';
-
         document.getElementById('heroTotalRanges').textContent =
             this.summaryData.total_ip_ranges?.toLocaleString() || '...';
 
@@ -296,7 +290,22 @@ class AzureServiceTagsDashboard {
         const servicesHtml = currentServices.map((service, index) => {
             const actualRank = startIndex + index + 1;
             const netChange = service.net_ip_change;
-            const ipIndicator = netChange > 0 ? `🟢 +${netChange.toLocaleString()}` : netChange < 0 ? `🔴 ${netChange.toLocaleString()}` : '⚪ 0';
+
+            // Determine status based on both additions and removals
+            let ipIndicator;
+            if (service.ip_added > 0 && service.ip_removed > 0) {
+                // Mixed changes - both additions and removals
+                ipIndicator = `🟡 ±${Math.abs(netChange).toLocaleString()} (+${service.ip_added.toLocaleString()} -${service.ip_removed.toLocaleString()})`;
+            } else if (netChange > 0) {
+                // Only additions
+                ipIndicator = `🟢 +${netChange.toLocaleString()}`;
+            } else if (netChange < 0) {
+                // Only removals
+                ipIndicator = `🔴 ${netChange.toLocaleString()}`;
+            } else {
+                // No net change
+                ipIndicator = '⚪ 0';
+            }
 
             return `
                 <div class="service-rank-item" onclick="dashboard.showServiceDetails('${service.service.replace(/'/g, "\\'")}')">
@@ -480,42 +489,17 @@ class AzureServiceTagsDashboard {
             (change.region || '') === region
         );
 
+        console.log(`Region: ${region}, Display: ${displayName}`);
+        console.log(`Found ${regionChanges.length} changes for this region`);
+        console.log('Sample change:', regionChanges[0]);
+
         if (regionChanges.length === 0) {
             alert(`No detailed changes available for ${displayName}`);
             return;
         }
 
-        // Create modal content
-        const changesHtml = regionChanges.slice(0, 20).map(change => {
-            return this.renderChangeItem(change);
-        }).join('');
-
-        const modalContent = `
-            <div class="region-modal">
-                <div class="region-modal-header">
-                    <h3>🗺️ ${displayName}</h3>
-                    <p>${changeCount} total changes</p>
-                    <button onclick="dashboard.closeRegionModal()" class="close-modal-btn">&times;</button>
-                </div>
-                <div class="region-modal-body">
-                    ${changesHtml}
-                    ${regionChanges.length > 20 ? `<p><strong>... and ${regionChanges.length - 20} more changes</strong></p>` : ''}
-                </div>
-            </div>
-        `;
-
-        // Show modal
-        const modalOverlay = document.createElement('div');
-        modalOverlay.className = 'region-modal-overlay';
-        modalOverlay.innerHTML = modalContent;
-        modalOverlay.onclick = (e) => {
-            if (e.target === modalOverlay) {
-                this.closeRegionModal();
-            }
-        };
-
-        document.body.appendChild(modalOverlay);
-        this.currentModal = modalOverlay;
+        // Use the same modal as "All Changes This Week" for consistency
+        this.showChangesModal(`🗺️ ${displayName} - Changes This Week`, regionChanges, 'region');
     }
 
     closeRegionModal() {
@@ -702,6 +686,7 @@ class AzureServiceTagsDashboard {
             return;
         }
 
+        // Show the two-level modal: regions -> services with IP details
         this.showRegionChangesModal('Region Changes This Week', ipChanges);
     }
 
@@ -908,12 +893,14 @@ class AzureServiceTagsDashboard {
         modal.innerHTML = `
             <div class="changes-modal">
                 <div class="changes-modal-header">
-                    <h3>🌍 ${title}</h3>
-                    <div class="changes-modal-stats">
-                        <span class="stat">🌍 ${totalRegions} regions affected</span>
-                        <span class="stat">📊 ${totalChanges} total changes</span>
+                    <div>
+                        <h3>🌍 ${title}</h3>
+                        <div class="changes-modal-stats">
+                            <span class="stat-item">🌍 ${totalRegions} regions affected</span>
+                            <span class="stat-item">📊 ${totalChanges} total changes</span>
+                        </div>
                     </div>
-                    <button class="close-modal" onclick="this.closest('.changes-modal-overlay').remove()">✕</button>
+                    <button onclick="this.closest('.changes-modal-overlay').remove()" class="close-modal-btn">&times;</button>
                 </div>
                 <div class="changes-modal-content">
                     <div class="region-list">
@@ -1001,80 +988,24 @@ class AzureServiceTagsDashboard {
         modal.querySelector('.region-list').style.display = 'none';
         modal.querySelector('.services-for-region').style.display = 'block';
 
-        // Group changes by service name
-        const serviceChanges = {};
-        regionChanges.forEach(change => {
-            const serviceName = change.service || 'Unknown Service';
-            if (!serviceChanges[serviceName]) {
-                serviceChanges[serviceName] = {
-                    service: serviceName,
-                    changes: []
-                };
-            }
-            serviceChanges[serviceName].changes.push(change);
-        });
-
-        const services = Object.keys(serviceChanges).sort();
+        // Render all services with full IP details using renderChangeItemDetailed
+        const servicesHtml = regionChanges.map(change => {
+            return this.renderChangeItemDetailed(change);
+        }).join('');
 
         const container = modal.querySelector('#regionServicesContainer');
         container.innerHTML = `
             <div class="region-services-header">
                 <h4>Services that changed in ${displayName}</h4>
                 <div class="services-stats">
-                    <span class="stat">🔧 ${services.length} services affected</span>
+                    <span class="stat">🔧 ${regionChanges.length} services affected</span>
                     <span class="stat">📊 ${regionChanges.length} total changes</span>
                 </div>
             </div>
-            <div class="services-list">
-                ${services.map(serviceName => {
-            const serviceData = serviceChanges[serviceName];
-            const changes = serviceData.changes;
-            const addedCount = changes.filter(c => c.added && c.added.length > 0).reduce((sum, c) => sum + c.added.length, 0);
-            const removedCount = changes.filter(c => c.removed && c.removed.length > 0).reduce((sum, c) => sum + c.removed.length, 0);
-
-            return `
-                        <div class="service-change-item">
-                            <div class="service-info">
-                                <div class="service-name">${serviceName}</div>
-                                <div class="service-stats">
-                                    ${addedCount > 0 ? `<span class="added">+${addedCount} IPs</span>` : ''}
-                                    ${removedCount > 0 ? `<span class="removed">-${removedCount} IPs</span>` : ''}
-                                </div>
-                            </div>
-                            <div class="service-details" style="display: none;">
-                                ${changes.map(change => `
-                                    <div class="change-detail">
-                                        ${change.added && change.added.length > 0 ? `
-                                            <div class="added-ips">
-                                                <strong>Added IPs:</strong>
-                                                <div class="ip-list">${change.added.slice(0, 5).join(', ')}${change.added.length > 5 ? ` and ${change.added.length - 5} more...` : ''}</div>
-                                            </div>
-                                        ` : ''}
-                                        ${change.removed && change.removed.length > 0 ? `
-                                            <div class="removed-ips">
-                                                <strong>Removed IPs:</strong>
-                                                <div class="ip-list">${change.removed.slice(0, 5).join(', ')}${change.removed.length > 5 ? ` and ${change.removed.length - 5} more...` : ''}</div>
-                                            </div>
-                                        ` : ''}
-                                    </div>
-                                `).join('')}
-                            </div>
-                        </div>
-                    `;
-        }).join('')}
+            <div class="changes-list">
+                ${servicesHtml}
             </div>
         `;
-
-        // Add click handlers for service items
-        const serviceItems = container.querySelectorAll('.service-change-item');
-        serviceItems.forEach(item => {
-            item.addEventListener('click', () => {
-                const details = item.querySelector('.service-details');
-                const isVisible = details.style.display !== 'none';
-                details.style.display = isVisible ? 'none' : 'block';
-                item.classList.toggle('expanded', !isVisible);
-            });
-        });
     }
 
     showRegionDetails(regionName, regionChanges) {
@@ -1306,6 +1237,14 @@ class AzureServiceTagsDashboard {
         if (change.type === 'ip_changes') {
             const addedCount = change.added_count || 0;
             const removedCount = change.removed_count || 0;
+            const addedPrefixes = change.added_prefixes || [];
+            const removedPrefixes = change.removed_prefixes || [];
+
+            // Show all IPs with expand/collapse for large lists
+            const collapseThreshold = 10;
+            const showAddedIPs = addedPrefixes.length > 0;
+            const showRemovedIPs = removedPrefixes.length > 0;
+            const uniqueId = `change-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
 
             return `
                 <div class="change-item detailed ${changeTypeClass}">
@@ -1321,21 +1260,38 @@ class AzureServiceTagsDashboard {
                             <span class="change-stat added">➕ ${addedCount} IPs added</span>
                             <span class="change-stat removed">➖ ${removedCount} IPs removed</span>
                         </div>
-                        ${addedCount > 0 && addedCount <= 10 ?
-                    `<div class="ip-list">
+                        ${showAddedIPs ? `
+                            <div class="ip-list">
                                 <strong>Added IPs:</strong>
-                                ${change.added_prefixes.slice(0, 10).map(ip => `<code>${ip}</code>`).join(' ')}
-                            </div>` : ''
-                }
-                        ${removedCount > 0 && removedCount <= 10 ?
-                    `<div class="ip-list">
+                                <div class="ip-container">
+                                    ${addedPrefixes.slice(0, collapseThreshold).map(ip => `<code>${ip}</code>`).join(' ')}
+                                    ${addedPrefixes.length > collapseThreshold ? `
+                                        <span class="ip-hidden" id="added-${uniqueId}" style="display:none;">
+                                            ${addedPrefixes.slice(collapseThreshold).map(ip => `<code>${ip}</code>`).join(' ')}
+                                        </span>
+                                        <button class="show-more-btn" onclick="dashboard.toggleIPs('added-${uniqueId}', this)">
+                                            ➕ Show ${addedPrefixes.length - collapseThreshold} more
+                                        </button>
+                                    ` : ''}
+                                </div>
+                            </div>
+                        ` : ''}
+                        ${showRemovedIPs ? `
+                            <div class="ip-list">
                                 <strong>Removed IPs:</strong>
-                                ${change.removed_prefixes.slice(0, 10).map(ip => `<code>${ip}</code>`).join(' ')}
-                            </div>` : ''
-                }
-                        ${addedCount > 10 || removedCount > 10 ?
-                    `<p class="more-ips">... and ${Math.max(0, addedCount - 10) + Math.max(0, removedCount - 10)} more IP ranges</p>` : ''
-                }
+                                <div class="ip-container">
+                                    ${removedPrefixes.slice(0, collapseThreshold).map(ip => `<code>${ip}</code>`).join(' ')}
+                                    ${removedPrefixes.length > collapseThreshold ? `
+                                        <span class="ip-hidden" id="removed-${uniqueId}" style="display:none;">
+                                            ${removedPrefixes.slice(collapseThreshold).map(ip => `<code>${ip}</code>`).join(' ')}
+                                        </span>
+                                        <button class="show-more-btn" onclick="dashboard.toggleIPs('removed-${uniqueId}', this)">
+                                            ➕ Show ${removedPrefixes.length - collapseThreshold} more
+                                        </button>
+                                    ` : ''}
+                                </div>
+                            </div>
+                        ` : ''}
                     </div>
                 </div>
             `;
@@ -1435,6 +1391,21 @@ class AzureServiceTagsDashboard {
         }).catch(err => {
             console.error('Failed to copy:', err);
         });
+    }
+
+    toggleIPs(elementId, button) {
+        const element = document.getElementById(elementId);
+        if (!element) return;
+
+        if (element.style.display === 'none') {
+            element.style.display = 'inline';
+            button.textContent = '➖ Show less';
+        } else {
+            element.style.display = 'none';
+            const match = button.textContent.match(/\d+/);
+            const count = match ? match[0] : '';
+            button.textContent = `➕ Show ${count} more`;
+        }
     }
 
     // Utility methods

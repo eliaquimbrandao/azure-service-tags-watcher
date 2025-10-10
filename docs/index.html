@@ -53,10 +53,6 @@
             </div>
             <div class="hero-stats">
                 <div class="hero-stat">
-                    <span class="stat-number" id="heroTotalServices">...</span>
-                    <span class="stat-label">Services</span>
-                </div>
-                <div class="hero-stat">
                     <span class="stat-number" id="heroTotalRanges">...</span>
                     <span class="stat-label">IP Ranges</span>
                 </div>
@@ -71,12 +67,6 @@
             </div>
         </div>
     </header>
-
-    <!-- Debug Panel (temporary) -->
-    <div class="debug-panel">
-        <button onclick="location.reload(true)" class="debug-btn refresh-btn">🔄 Hard Refresh</button>
-        <button onclick="window.debugDashboard()" class="debug-btn debug-btn-main">🐛 Debug</button>
-    </div>
 
     <main class="main-content">
         <div class="container">
@@ -98,13 +88,6 @@
                 <!-- Quick Stats Overview -->
                 <section class="stats-overview">
                     <div class="stats-grid">
-                        <article class="stat-card">
-                            <div class="stat-icon">🏷️</div>
-                            <div class="stat-content">
-                                <h3 id="totalServices">0</h3>
-                                <p>Total Services</p>
-                            </div>
-                        </article>
                         <article class="stat-card clickable-stat" onclick="dashboard.showIPRangesHistory()"
                             title="Click to see IP ranges history">
                             <div class="stat-icon">📊</div>
