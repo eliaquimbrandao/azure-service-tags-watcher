@@ -589,17 +589,37 @@ body {
     display: flex;
     align-items: center;
     padding: 1rem;
+    padding-right: 3rem;
+    /* Extra space for the emoji */
     background: white;
     border: 1px solid #e0e0e0;
     border-radius: 8px;
     transition: all 0.2s ease;
     cursor: pointer;
+    position: relative;
+}
+
+.service-rank-item::after {
+    content: '👆';
+    position: absolute;
+    right: 12px;
+    top: 50%;
+    transform: translateY(-50%);
+    font-size: 1.2rem;
+    opacity: 0;
+    transition: opacity 0.2s ease;
+    pointer-events: none;
+    /* This ensures the emoji doesn't block clicks */
 }
 
 .service-rank-item:hover {
     border-color: #007acc;
     box-shadow: 0 2px 8px rgba(0, 122, 204, 0.1);
     transform: translateX(4px);
+}
+
+.service-rank-item:hover::after {
+    opacity: 0.6;
 }
 
 .rank-number {

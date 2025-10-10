@@ -289,31 +289,30 @@ class AzureServiceTagsDashboard {
         // Create a simple list instead of a chart
         const servicesHtml = currentServices.map((service, index) => {
             const actualRank = startIndex + index + 1;
-            const netChange = service.net_ip_change;
 
-            // Determine status based on both additions and removals
+            // Simple display: just show what was added and removed
             let ipIndicator;
             if (service.ip_added > 0 && service.ip_removed > 0) {
-                // Mixed changes - both additions and removals
-                ipIndicator = `🟡 ±${Math.abs(netChange).toLocaleString()} (+${service.ip_added.toLocaleString()} -${service.ip_removed.toLocaleString()})`;
-            } else if (netChange > 0) {
+                // Mixed changes - show both additions and removals
+                ipIndicator = `🟡 +${service.ip_added.toLocaleString()} IPs added, ${service.ip_removed.toLocaleString()} IPs removed`;
+            } else if (service.ip_added > 0) {
                 // Only additions
-                ipIndicator = `🟢 +${netChange.toLocaleString()}`;
-            } else if (netChange < 0) {
+                ipIndicator = `🟢 +${service.ip_added.toLocaleString()} IPs added`;
+            } else if (service.ip_removed > 0) {
                 // Only removals
-                ipIndicator = `🔴 ${netChange.toLocaleString()}`;
+                ipIndicator = `🔴 ${service.ip_removed.toLocaleString()} IPs removed`;
             } else {
-                // No net change
-                ipIndicator = '⚪ 0';
+                // No change
+                ipIndicator = '⚪ No IP changes';
             }
 
             return `
-                <div class="service-rank-item" onclick="dashboard.showServiceDetails('${service.service.replace(/'/g, "\\'")}')">
+                <div class="service-rank-item" data-service-name="${service.service.replace(/"/g, '&quot;')}" title="Click to view details for ${service.service.replace(/"/g, '&quot;')}">
                     <div class="rank-number">${actualRank}</div>
                     <div class="service-details">
                         <div class="service-name">${service.service}</div>
                         <div class="change-count">
-                            ${service.change_count} change${service.change_count !== 1 ? 's' : ''} • ${ipIndicator} IPs
+                            ${service.change_count} change${service.change_count !== 1 ? 's' : ''} • ${ipIndicator}
                         </div>
                     </div>
                 </div>
@@ -343,6 +342,20 @@ class AzureServiceTagsDashboard {
             </div>
             ${paginationHtml}
         `;
+
+        // Add event delegation for service item clicks
+        const servicesList = container.querySelector('.services-rank-list');
+        if (servicesList) {
+            servicesList.addEventListener('click', (e) => {
+                const serviceItem = e.target.closest('.service-rank-item');
+                if (serviceItem) {
+                    const serviceName = serviceItem.getAttribute('data-service-name');
+                    if (serviceName) {
+                        this.showServiceDetails(serviceName);
+                    }
+                }
+            });
+        }
     }
 
     generatePageNumbers(currentPage, totalPages, onClickFunction) {
@@ -406,24 +419,21 @@ class AzureServiceTagsDashboard {
             return;
         }
 
-        // Sort regions alphabetically (Global first, then alphabetical)
+        // Filter out Global region (empty string) and sort alphabetically
         const sortedRegions = Object.entries(regionalData)
-            .sort(([a], [b]) => {
-                // Put "Global" (empty string) first
-                if (!a && b) return -1;
-                if (a && !b) return 1;
-                if (!a && !b) return 0;
-                // Then sort alphabetically
-                return a.localeCompare(b);
-            });
+            .filter(([region]) => region !== '') // Exclude Global (empty string)
+            .sort(([a], [b]) => a.localeCompare(b)); // Sort alphabetically by region name
 
         // Filter to only show regions with more than 3 changes
         const significantRegions = sortedRegions.filter(([region, count]) => count > 3);
 
         if (significantRegions.length === 0) {
             regionalContainer.innerHTML = `
-                <h3>🗺️ Most Impacted Regions</h3>
-                <p>No regions with significant changes (more than 3 services) this week</p>
+                <h3>🌍 Regional Hotspots</h3>
+                <p>No geographic regions with significant changes (more than 3 services) this week</p>
+                <div class="region-help">
+                    💡 Showing only Azure geographic regions (Global services excluded)
+                </div>
             `;
             return;
         }
@@ -473,12 +483,12 @@ class AzureServiceTagsDashboard {
         }).join('');
 
         regionalContainer.innerHTML = `
-            <h3>🗺️ Most Impacted Regions</h3>
+            <h3>🌍 Regional Hotspots</h3>
             <div class="regions-list">
                 ${regionsHtml}
             </div>
             <div class="region-help">
-                💡 Showing regions with more than 3 service changes
+                💡 Showing geographic regions with more than 3 service changes (Global services excluded)
             </div>
         `;
     }
@@ -1138,7 +1148,7 @@ class AzureServiceTagsDashboard {
                             <span class="breakdown-number" style="color: ${changeColor};">
                                 ${netIPChange >= 0 ? '+' : ''}${netIPChange.toLocaleString()}
                             </span>
-                            <span class="breakdown-label">Net change</span>
+                            <span class="breakdown-label">Total change</span>
                         </div>
                     </div>
                 </div>
