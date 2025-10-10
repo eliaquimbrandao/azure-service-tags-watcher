@@ -83,6 +83,10 @@ class AzureServiceTagsDashboard {
         this.activeServicesChart = null;
         this.regionalChart = null;
         this.currentModal = null;
+        this.isRendered = false;
+        this.servicesPage = 1;
+        this.servicesContainer = null;
+        this.recentChangesPage = 1;
 
         this.init();
     }
@@ -106,7 +110,6 @@ class AzureServiceTagsDashboard {
         modals.forEach(modal => {
             modal.classList.add('hidden');
         });
-        console.log('All modals hidden on initialization');
     }
 
     async loadData() {
@@ -114,11 +117,12 @@ class AzureServiceTagsDashboard {
         loadingEl.classList.remove('hidden');
 
         try {
-            // Load all required data files
+            // Load all required data files with cache busting
+            const timestamp = new Date().getTime();
             const [currentResponse, summaryResponse, changesResponse] = await Promise.all([
-                fetch('./data/current.json'),
-                fetch('./data/summary.json'),
-                fetch('./data/changes/latest-changes.json')
+                fetch(`./data/current.json?t=${timestamp}`),
+                fetch(`./data/summary.json?t=${timestamp}`),
+                fetch(`./data/changes/latest-changes.json?t=${timestamp}`)
             ]);
 
             if (!currentResponse.ok || !summaryResponse.ok) {
@@ -135,11 +139,6 @@ class AzureServiceTagsDashboard {
                 this.changesData = { changes: [], total_changes: 0 };
             }
 
-            console.log('Data loaded successfully', {
-                services: this.currentData.values?.length,
-                changes: this.changesData.total_changes
-            });
-
         } catch (error) {
             console.error('Error loading data:', error);
             throw error;
@@ -149,6 +148,12 @@ class AzureServiceTagsDashboard {
     }
 
     renderDashboard() {
+        // Prevent multiple renderings
+        if (this.isRendered) {
+            console.log('Dashboard already rendered, skipping...');
+            return;
+        }
+
         const dashboardEl = document.getElementById('dashboard');
         dashboardEl.classList.remove('hidden');
 
@@ -156,7 +161,8 @@ class AzureServiceTagsDashboard {
         this.renderLastUpdated();
         this.renderCharts();
         this.renderRecentChanges();
-        this.setupSearch();
+
+        this.isRendered = true;
     }
 
     renderStats() {
@@ -170,8 +176,11 @@ class AzureServiceTagsDashboard {
         document.getElementById('changesThisWeek').textContent =
             this.summaryData.changes_this_week?.toLocaleString() || '0';
 
+        // Calculate number of regions with changes
+        const regionsWithChanges = this.summaryData.regional_changes ?
+            Object.keys(this.summaryData.regional_changes).length : 0;
         document.getElementById('ipChanges').textContent =
-            this.summaryData.ip_changes?.toLocaleString() || '0';
+            regionsWithChanges.toLocaleString();
 
         // Update hero stats
         document.getElementById('heroTotalServices').textContent =
@@ -223,64 +232,165 @@ class AzureServiceTagsDashboard {
     }
 
     renderActiveServicesChart() {
-        const ctx = document.getElementById('activeServicesChart').getContext('2d');
-        const topServices = this.summaryData.top_active_services || [];
+        // Store container reference or find it
+        if (!this.servicesContainer) {
+            const chartElement = document.getElementById('activeServicesChart');
+            this.servicesContainer = chartElement ? chartElement.parentElement : null;
+        }
 
-        if (topServices.length === 0) {
-            ctx.canvas.parentElement.innerHTML = '<p>No service activity data available</p>';
+        const container = this.servicesContainer;
+        if (!container) {
+            console.error('Services container not found');
             return;
         }
 
-        // Destroy existing chart if it exists
-        if (this.activeServicesChart) {
-            this.activeServicesChart.destroy();
-        }
+        // Calculate all active services from changes data
+        const changes = this.changesData.changes || [];
+        const serviceCounts = {};
+        const serviceIPCounts = {};
 
-        this.activeServicesChart = new Chart(ctx, {
-            type: 'horizontalBar',
-            data: {
-                labels: topServices.map(s => this.truncateServiceName(s.service)),
-                datasets: [{
-                    label: 'IP Range Changes',
-                    data: topServices.map(s => s.change_count),
-                    backgroundColor: 'rgba(0, 120, 212, 0.6)',
-                    borderColor: 'rgba(0, 120, 212, 1)',
-                    borderWidth: 1
-                }]
-            },
-            options: {
-                responsive: true,
-                maintainAspectRatio: false,
-                plugins: {
-                    legend: {
-                        display: false
-                    },
-                    tooltip: {
-                        callbacks: {
-                            title: function (tooltipItems) {
-                                const index = tooltipItems[0].dataIndex;
-                                return topServices[index].service;
-                            }
-                        }
-                    }
-                },
-                scales: {
-                    x: {
-                        beginAtZero: true,
-                        ticks: {
-                            precision: 0
-                        }
-                    }
-                }
+        changes.forEach(change => {
+            const serviceName = change.service;
+            if (!serviceCounts[serviceName]) {
+                serviceCounts[serviceName] = 0;
+                serviceIPCounts[serviceName] = { added: 0, removed: 0 };
+            }
+            serviceCounts[serviceName]++;
+
+            // Track IP changes
+            if (change.added_count) {
+                serviceIPCounts[serviceName].added += change.added_count;
+            }
+            if (change.removed_count) {
+                serviceIPCounts[serviceName].removed += change.removed_count;
             }
         });
+
+        // Convert to array and sort by change count
+        const allServices = Object.entries(serviceCounts)
+            .map(([service, count]) => ({
+                service,
+                change_count: count,
+                ip_added: serviceIPCounts[service].added,
+                ip_removed: serviceIPCounts[service].removed,
+                net_ip_change: serviceIPCounts[service].added - serviceIPCounts[service].removed
+            }))
+            .sort((a, b) => b.change_count - a.change_count);
+
+        if (allServices.length === 0) {
+            container.innerHTML = '<p>No service activity data available</p>';
+            return;
+        }
+
+        // Initialize pagination
+        if (!this.servicesPage) {
+            this.servicesPage = 1;
+        }
+        const itemsPerPage = 5;
+        const totalPages = Math.ceil(allServices.length / itemsPerPage);
+        const startIndex = (this.servicesPage - 1) * itemsPerPage;
+        const endIndex = startIndex + itemsPerPage;
+        const currentServices = allServices.slice(startIndex, endIndex);
+
+        // Create a simple list instead of a chart
+        const servicesHtml = currentServices.map((service, index) => {
+            const actualRank = startIndex + index + 1;
+            const netChange = service.net_ip_change;
+            const ipIndicator = netChange > 0 ? `🟢 +${netChange.toLocaleString()}` : netChange < 0 ? `🔴 ${netChange.toLocaleString()}` : '⚪ 0';
+
+            return `
+                <div class="service-rank-item" onclick="dashboard.showServiceDetails('${service.service.replace(/'/g, "\\'")}')">
+                    <div class="rank-number">${actualRank}</div>
+                    <div class="service-details">
+                        <div class="service-name">${service.service}</div>
+                        <div class="change-count">
+                            ${service.change_count} change${service.change_count !== 1 ? 's' : ''} • ${ipIndicator} IPs
+                        </div>
+                    </div>
+                </div>
+            `;
+        }).join('');
+
+        // Create pagination controls
+        const paginationHtml = totalPages > 1 ? `
+            <div class="pagination">
+                <button class="pagination-btn" ${this.servicesPage === 1 ? 'disabled' : ''} onclick="dashboard.changeServicesPage(${this.servicesPage - 1})">
+                    ←
+                </button>
+                ${this.generatePageNumbers(this.servicesPage, totalPages, 'changeServicesPage')}
+                <button class="pagination-btn" ${this.servicesPage === totalPages ? 'disabled' : ''} onclick="dashboard.changeServicesPage(${this.servicesPage + 1})">
+                    →
+                </button>
+            </div>
+            <div class="pagination-info">
+                Showing ${startIndex + 1}-${Math.min(endIndex, allServices.length)} of ${allServices.length} services
+            </div>
+        ` : '';
+
+        container.innerHTML = `
+            <h3>📊 Most Active Services</h3>
+            <div class="services-rank-list">
+                ${servicesHtml}
+            </div>
+            ${paginationHtml}
+        `;
+    }
+
+    generatePageNumbers(currentPage, totalPages, onClickFunction) {
+        let pages = [];
+        const maxVisible = 4;
+
+        if (totalPages <= maxVisible + 2) {
+            // Show all pages if total is small
+            for (let i = 1; i <= totalPages; i++) {
+                pages.push(i);
+            }
+        } else {
+            // Always show first page
+            pages.push(1);
+
+            // Calculate range around current page
+            let start = Math.max(2, currentPage - 1);
+            let end = Math.min(totalPages - 1, currentPage + 1);
+
+            // Add ellipsis if needed
+            if (start > 2) pages.push('...');
+
+            // Add pages around current
+            for (let i = start; i <= end; i++) {
+                pages.push(i);
+            }
+
+            // Add ellipsis if needed
+            if (end < totalPages - 1) pages.push('...');
+
+            // Always show last page
+            pages.push(totalPages);
+        }
+
+        return pages.map(page => {
+            if (page === '...') {
+                return '<span class="pagination-ellipsis">...</span>';
+            }
+            return `<button class="pagination-btn ${page === currentPage ? 'active' : ''}" onclick="dashboard.${onClickFunction}(${page})">${page}</button>`;
+        }).join('');
+    }
+
+    changeServicesPage(page) {
+        this.servicesPage = page;
+        this.renderActiveServicesChart();
+    }
+
+    changeRecentChangesPage(page) {
+        this.recentChangesPage = page;
+        this.renderRecentChanges();
+        // Scroll to recent changes section
+        document.getElementById('recentChanges').scrollIntoView({ behavior: 'smooth', block: 'start' });
     }
 
     renderRegionalList() {
         const regionalContainer = document.getElementById('regionalChart').parentElement;
         const regionalData = this.summaryData.regional_changes || {};
-
-        console.log(`Regional data entries: ${Object.keys(regionalData).length}`);
 
         if (Object.keys(regionalData).length === 0) {
             regionalContainer.innerHTML = '<p>No regional change data available</p>';
@@ -298,27 +408,68 @@ class AzureServiceTagsDashboard {
                 return a.localeCompare(b);
             });
 
+        // Filter to only show regions with more than 3 changes
+        const significantRegions = sortedRegions.filter(([region, count]) => count > 3);
+
+        if (significantRegions.length === 0) {
+            regionalContainer.innerHTML = `
+                <h3>🗺️ Most Impacted Regions</h3>
+                <p>No regions with significant changes (more than 3 services) this week</p>
+            `;
+            return;
+        }
+
+        // Get detailed data for each region
+        const changes = this.changesData.changes || [];
+
         // Create interactive regional list
-        const regionsHtml = sortedRegions.map(([region, count]) => {
+        const regionsHtml = significantRegions.map(([region, count]) => {
             const displayName = getRegionDisplayName(region);
+
+            // Get all changes for this region
+            const regionChanges = changes.filter(change => (change.region || '') === region);
+
+            // Calculate IP totals for this region
+            let totalIPsAdded = 0;
+            let totalIPsRemoved = 0;
+            regionChanges.forEach(change => {
+                totalIPsAdded += change.added_count || 0;
+                totalIPsRemoved += change.removed_count || 0;
+            });
+            const netIPChange = totalIPsAdded - totalIPsRemoved;
+
+            // Find top service in this region
+            const serviceCounts = {};
+            regionChanges.forEach(change => {
+                const serviceName = change.service;
+                serviceCounts[serviceName] = (serviceCounts[serviceName] || 0) + 1;
+            });
+            const topService = Object.entries(serviceCounts)
+                .sort((a, b) => b[1] - a[1])[0];
+            const topServiceName = topService ? topService[0] : 'N/A';
+            const topServiceCount = topService ? topService[1] : 0;
 
             return `
                 <div class="region-item" data-region="${region}" onclick="dashboard.showRegionChanges('${region}', '${displayName}', ${count})">
                     <div class="region-info">
                         <span class="region-name">${displayName}</span>
+                        <span class="region-top-service">└─ ${topServiceName} (${topServiceCount} change${topServiceCount !== 1 ? 's' : ''})</span>
                     </div>
                     <div class="region-count">
-                        <span class="change-badge">${count}</span>
+                        <span class="change-badge">${count} changes</span>
+                        <span class="ip-badge">${netIPChange >= 0 ? '+' : ''}${netIPChange.toLocaleString()} IPs</span>
                     </div>
                 </div>
             `;
-        }).join(''); regionalContainer.innerHTML = `
-            <h3>🗺️ Changes by Region</h3>
+        }).join('');
+
+        regionalContainer.innerHTML = `
+            <h3>🗺️ Most Impacted Regions</h3>
             <div class="regions-list">
                 ${regionsHtml}
             </div>
             <div class="region-help">
-                💡 Click on a region to see its specific changes
+                💡 Showing regions with more than 3 service changes
             </div>
         `;
     }
@@ -378,7 +529,10 @@ class AzureServiceTagsDashboard {
         const changesContainer = document.getElementById('recentChanges');
         const changes = this.changesData.changes || [];
 
-        console.log(`Rendering ${changes.length} changes`);
+        if (!changesContainer) {
+            console.error('recentChanges container not found!');
+            return;
+        }
 
         if (changes.length === 0) {
             changesContainer.innerHTML = `
@@ -394,53 +548,40 @@ class AzureServiceTagsDashboard {
             return;
         }
 
-        // Limit to first 10 changes for better performance
-        const displayLimit = 10;
+        // Sort changes alphabetically
+        const sortedChanges = changes.sort((a, b) => a.service.localeCompare(b.service));
 
-        // Safety check for very large datasets
-        if (changes.length > 5000) {
-            changesContainer.innerHTML = `
-                <div class="change-item">
-                    <div class="change-header">
-                        <div class="change-service">🚀 Initial Data Load Complete</div>
-                    </div>
-                    <div class="change-details">
-                        Successfully loaded ${changes.length.toLocaleString()} Azure service tags in the initial setup.
-                        <br><br>
-                        <strong>Future updates will show incremental changes only.</strong>
-                        <br>
-                        <a href="./data/changes/latest-changes.json" target="_blank" style="color: var(--primary-color);">📄 View complete data file</a>
-                    </div>
-                </div>
-            `;
-            return;
+        // Initialize pagination
+        if (!this.recentChangesPage) {
+            this.recentChangesPage = 1;
         }
-
-        const displayChanges = changes.slice(0, displayLimit);
+        const itemsPerPage = 5;
+        const totalPages = Math.ceil(sortedChanges.length / itemsPerPage);
+        const startIndex = (this.recentChangesPage - 1) * itemsPerPage;
+        const endIndex = startIndex + itemsPerPage;
+        const displayChanges = sortedChanges.slice(startIndex, endIndex);
 
         const changesHtml = displayChanges.map(change => {
             return this.renderChangeItem(change);
         }).join('');
 
-        changesContainer.innerHTML = changesHtml;
+        // Create pagination controls
+        const paginationHtml = totalPages > 1 ? `
+            <div class="pagination">
+                <button class="pagination-btn" ${this.recentChangesPage === 1 ? 'disabled' : ''} onclick="dashboard.changeRecentChangesPage(${this.recentChangesPage - 1})">
+                    ←
+                </button>
+                ${this.generatePageNumbers(this.recentChangesPage, totalPages, 'changeRecentChangesPage')}
+                <button class="pagination-btn" ${this.recentChangesPage === totalPages ? 'disabled' : ''} onclick="dashboard.changeRecentChangesPage(${this.recentChangesPage + 1})">
+                    →
+                </button>
+            </div>
+            <div class="pagination-info">
+                Showing ${startIndex + 1}-${Math.min(endIndex, sortedChanges.length)} of ${sortedChanges.length} changes
+            </div>
+        ` : '';
 
-        if (changes.length > displayLimit) {
-            const remainingChanges = changes.length - displayLimit;
-            changesContainer.innerHTML += `
-                <div class="change-item">
-                    <div class="change-details">
-                        <strong>📊 Showing ${displayLimit} of ${changes.length.toLocaleString()} total changes</strong>
-                        <br>
-                        ${remainingChanges >= 1000 ?
-                    `This appears to be an initial data load with ${changes.length.toLocaleString()} service additions.` :
-                    `... and ${remainingChanges.toLocaleString()} more changes.`
-                }
-                        <br>
-                        <a href="./data/changes/latest-changes.json" target="_blank" style="color: var(--primary-color);">📄 View complete data file</a>
-                    </div>
-                </div>
-            `;
-        }
+        changesContainer.innerHTML = changesHtml + paginationHtml;
     }
 
     renderChangeItem(change) {
@@ -450,10 +591,14 @@ class AzureServiceTagsDashboard {
         let detailsHtml = '';
 
         if (change.type === 'ip_changes') {
+            const regionDisplay = change.region && change.region.trim() !== ''
+                ? getRegionDisplayName(change.region)
+                : '🌐 Global';
+
             detailsHtml = `
                 <div class="change-details">
-                    <strong>Region:</strong> ${getRegionDisplayName(change.region)} | 
-                    <strong>System Service:</strong> ${change.system_service || 'N/A'}
+                    <strong>Region:</strong> ${regionDisplay}
+                    ${change.system_service ? ` | <strong>System Service:</strong> ${change.system_service}` : ''}
                 </div>
                 <div class="ip-change-summary">
                     ${change.added_count > 0 ?
@@ -490,125 +635,11 @@ class AzureServiceTagsDashboard {
         `;
     }
 
-    setupSearch() {
-        const searchInput = document.getElementById('serviceSearch');
-        const clearButton = document.getElementById('clearSearch');
-        const resultsContainer = document.getElementById('searchResults');
 
-        let searchTimeout;
 
-        searchInput.addEventListener('input', (e) => {
-            clearTimeout(searchTimeout);
-            searchTimeout = setTimeout(() => {
-                this.performSearch(e.target.value, resultsContainer);
-            }, 300);
-        });
 
-        clearButton.addEventListener('click', () => {
-            searchInput.value = '';
-            resultsContainer.innerHTML = '';
-        });
 
-        searchInput.addEventListener('keydown', (e) => {
-            if (e.key === 'Escape') {
-                searchInput.value = '';
-                resultsContainer.innerHTML = '';
-            }
-        });
-    }
 
-    performSearch(query, resultsContainer) {
-        if (!query || query.length < 2) {
-            resultsContainer.innerHTML = '';
-            return;
-        }
-
-        const services = this.currentData.values || [];
-        const lowerQuery = query.toLowerCase();
-
-        const matches = services.filter(service =>
-            service.name.toLowerCase().includes(lowerQuery) ||
-            (service.properties?.region &&
-                service.properties.region.toLowerCase().includes(lowerQuery)) ||
-            (service.properties?.systemService &&
-                service.properties.systemService.toLowerCase().includes(lowerQuery))
-        ).slice(0, 50);
-
-        if (matches.length === 0) {
-            resultsContainer.innerHTML = '<p>No services found matching your search.</p>';
-            return;
-        }
-
-        const resultsHtml = matches.map(service => {
-            const props = service.properties || {};
-            const ipCount = props.addressPrefixes?.length || 0;
-
-            return `
-                <div class="service-item" onclick="dashboard.showServiceDetails('${service.name}')">
-                    <div class="service-name">${service.name}</div>
-                    <div class="service-details">
-                        Region: ${getRegionDisplayName(props.region)} | 
-                        System Service: ${props.systemService || 'N/A'} | 
-                        IP Ranges: ${ipCount}
-                    </div>
-                </div>
-            `;
-        }).join('');
-
-        resultsContainer.innerHTML = resultsHtml;
-    }
-
-    showServiceDetails(serviceName) {
-        // Validate inputs
-        if (!serviceName || !this.currentData || !this.currentData.values) {
-            console.warn('Invalid service name or data not loaded');
-            return;
-        }
-
-        const service = this.currentData.values.find(s => s.name === serviceName);
-        if (!service) {
-            console.warn('Service not found:', serviceName);
-            return;
-        }
-
-        const modal = document.getElementById('serviceModal');
-        if (!modal) {
-            console.error('Service modal not found in DOM');
-            return;
-        }
-
-        const props = service.properties || {};
-
-        // Update modal content
-        const elements = {
-            modalServiceName: serviceName,
-            modalRegion: getRegionDisplayName(props.region),
-            modalSystemService: props.systemService || 'N/A',
-            modalIPCount: (props.addressPrefixes?.length || 0).toLocaleString()
-        };
-
-        // Safely update each element
-        Object.entries(elements).forEach(([id, value]) => {
-            const element = document.getElementById(id);
-            if (element) {
-                element.textContent = value;
-            }
-        });
-
-        // Update IP ranges
-        const ipRangesElement = document.getElementById('modalIPRanges');
-        if (ipRangesElement) {
-            const ipRanges = props.addressPrefixes || [];
-            const ipRangesHtml = ipRanges.length > 0 ?
-                ipRanges.map(ip => `<div>${ip}</div>`).join('') :
-                '<div>No IP ranges available</div>';
-            ipRangesElement.innerHTML = ipRangesHtml;
-        }
-
-        // Show modal
-        modal.classList.remove('hidden');
-        console.log('Service modal opened for:', serviceName);
-    }
 
     setupEventListeners() {
         // Modal close events
@@ -624,7 +655,6 @@ class AzureServiceTagsDashboard {
             closeBtn.addEventListener('click', (e) => {
                 e.preventDefault();
                 e.stopPropagation();
-                console.log('Close button clicked');
                 if (modal) {
                     modal.classList.add('hidden');
                 }
@@ -634,7 +664,6 @@ class AzureServiceTagsDashboard {
         if (modal) {
             modal.addEventListener('click', (e) => {
                 if (e.target === modal) {
-                    console.log('Modal backdrop clicked');
                     modal.classList.add('hidden');
                 }
             });
@@ -642,24 +671,770 @@ class AzureServiceTagsDashboard {
 
         document.addEventListener('keydown', (e) => {
             if (e.key === 'Escape' && modal && !modal.classList.contains('hidden')) {
-                console.log('Escape key pressed');
                 modal.classList.add('hidden');
             }
         });
-
-        // Add a global close function for debugging
-        window.closeServiceModal = () => {
-            if (modal) {
-                modal.classList.add('hidden');
-                console.log('Modal closed via global function');
-            }
-        };
     }
 
     showError(error) {
         console.error('Dashboard error:', error);
         document.getElementById('loadingState').classList.add('hidden');
         document.getElementById('errorState').classList.remove('hidden');
+    }
+
+    // Interactive stat card methods
+    showAllChanges() {
+        const changes = this.changesData.changes || [];
+        if (changes.length === 0) {
+            alert('No changes detected this week');
+            return;
+        }
+
+        this.showChangesModal('All Changes This Week', changes, 'all');
+    }
+
+    showRegionChanges() {
+        const changes = this.changesData.changes || [];
+        const ipChanges = changes.filter(change => change.type === 'ip_changes');
+
+        if (ipChanges.length === 0) {
+            alert('No region changes detected this week');
+            return;
+        }
+
+        this.showRegionChangesModal('Region Changes This Week', ipChanges);
+    }
+
+    showServiceDetails(serviceName) {
+        const changes = this.changesData.changes || [];
+        const serviceChanges = changes.filter(change => change.service === serviceName);
+
+        if (serviceChanges.length === 0) {
+            alert(`No detailed changes available for ${serviceName}`);
+            return;
+        }
+
+        this.showChangesModal(`${serviceName} - Changes This Week`, serviceChanges, 'service');
+    }
+
+    showChangesModal(title, changes, type) {
+        const modal = document.createElement('div');
+        modal.className = 'changes-modal-overlay';
+
+        // Limit display for performance
+        const displayLimit = 50;
+        const displayChanges = changes.slice(0, displayLimit);
+
+        const changesHtml = displayChanges.map(change => {
+            return this.renderChangeItemDetailed(change);
+        }).join('');
+
+        const statsHtml = this.generateChangeStats(changes, type);
+
+        modal.innerHTML = `
+            <div class="changes-modal">
+                <div class="changes-modal-header">
+                    <h3>📊 ${title}</h3>
+                    <div class="changes-modal-stats">
+                        ${statsHtml}
+                    </div>
+                    <button onclick="this.closest('.changes-modal-overlay').remove()" class="close-modal-btn">&times;</button>
+                </div>
+                <div class="changes-modal-body">
+                    <div class="search-section">
+                        <input type="text" 
+                               id="changesSearch" 
+                               placeholder="🔍 Search by service name, region, or IP address..." 
+                               class="changes-search-input"
+                               oninput="dashboard.filterChanges(this.value)">
+                        <div class="search-results-count" id="searchResultsCount">Showing ${Math.min(displayLimit, changes.length)} of ${changes.length.toLocaleString()} changes</div>
+                    </div>
+                    <div class="changes-list" id="changesList">
+                        ${changesHtml}
+                    </div>
+                    ${changes.length > displayLimit ?
+                `<div class="changes-footer">
+                            <p><strong>Showing ${displayLimit} of ${changes.length.toLocaleString()} total changes</strong></p>
+                            <a href="./data/changes/latest-changes.json" target="_blank" class="view-all-link">📄 View complete data file</a>
+                        </div>` : ''
+            }
+                </div>
+            </div>
+        `;
+
+        // Store data for filtering
+        modal.allChanges = changes;
+        modal.displayLimit = displayLimit;
+
+        // Close modal when clicking overlay
+        modal.onclick = (e) => {
+            if (e.target === modal) {
+                modal.remove();
+            }
+        };
+
+        document.body.appendChild(modal);
+        this.currentModal = modal;
+    }
+
+    filterChanges(searchTerm) {
+        if (!this.currentModal || !this.currentModal.allChanges) return;
+
+        const modal = this.currentModal;
+        const allChanges = modal.allChanges;
+        const displayLimit = modal.displayLimit;
+
+        let filteredChanges = allChanges;
+
+        if (searchTerm.trim()) {
+            const searchLower = searchTerm.toLowerCase();
+            filteredChanges = allChanges.filter(change => {
+                // Search in service name
+                if (change.service && change.service.toLowerCase().includes(searchLower)) return true;
+
+                // Search in region
+                const regionDisplay = getRegionDisplayName(change.region || '');
+                if (regionDisplay.toLowerCase().includes(searchLower)) return true;
+
+                // Search in IP addresses (for ip_changes)
+                if (change.type === 'ip_changes' || change.change_type === 'ip_changes') {
+                    const addedIPs = change.added_prefixes || change.added || [];
+                    const removedIPs = change.removed_prefixes || change.removed || [];
+                    const allIPs = [...addedIPs, ...removedIPs];
+
+                    if (allIPs.some(ip => ip.toLowerCase().includes(searchLower))) return true;
+                }
+
+                return false;
+            });
+        }
+
+        // Update the display
+        const changesList = modal.querySelector('#changesList');
+        const resultsCount = modal.querySelector('#searchResultsCount');
+
+        const displayChanges = filteredChanges.slice(0, displayLimit);
+        const changesHtml = displayChanges.map(change => {
+            return this.renderChangeItemDetailed(change);
+        }).join('');
+
+        changesList.innerHTML = changesHtml || '<div class="no-results">No changes found matching your search.</div>';
+        resultsCount.textContent = `Showing ${Math.min(displayLimit, filteredChanges.length)} of ${filteredChanges.length.toLocaleString()} changes${searchTerm.trim() ? ` (filtered from ${allChanges.length.toLocaleString()})` : ''}`;
+    }
+
+    showIPChangesModal(title, ipChanges) {
+        const modal = document.createElement('div');
+        modal.className = 'changes-modal-overlay';
+
+        // Group changes by region for better organization
+        const changesByRegion = this.groupChangesByRegion(ipChanges);
+        const regions = Object.keys(changesByRegion).sort();
+
+        // Generate regional navigation without default selection
+        const regionNavHtml = regions.length > 1 ?
+            `<div class="region-nav">
+                <div class="region-nav-header">
+                    <h4>Select a region to view IP changes:</h4>
+                </div>
+                <div class="region-buttons">
+                    <button class="region-filter" onclick="dashboard.filterIPChangesByRegion('all')">All Regions (${ipChanges.length})</button>
+                    ${regions.map(region => {
+                const displayName = getRegionDisplayName(region);
+                const count = changesByRegion[region].length;
+                return `<button class="region-filter" onclick="dashboard.filterIPChangesByRegion('${region}')">${displayName} (${count})</button>`;
+            }).join('')}
+                </div>
+            </div>` : '';
+
+        const statsHtml = this.generateIPChangeStats(ipChanges);
+
+        // Don't render changes initially - wait for region selection
+        const initialMessage = `<div class="region-selection-prompt">
+            <div class="prompt-content">
+                <h3>🌍 Choose a Region</h3>
+                <p>Select a region above to view detailed IP changes for that area.</p>
+                <div class="prompt-stats">
+                    <span class="stat">📊 ${ipChanges.length} total changes</span>
+                    <span class="stat">🌐 ${regions.length} regions affected</span>
+                </div>
+            </div>
+        </div>`;
+
+        modal.innerHTML = `
+            <div class="changes-modal ip-changes-modal">
+                <div class="changes-modal-header">
+                    <h3>🔄 ${title}</h3>
+                    <div class="changes-modal-stats">
+                        ${statsHtml}
+                    </div>
+                    <button onclick="this.closest('.changes-modal-overlay').remove()" class="close-modal-btn">&times;</button>
+                </div>
+                <div class="changes-modal-body">
+                    ${regionNavHtml}
+                    <div id="ipChangesContainer" class="ip-changes-container">
+                        ${initialMessage}
+                    </div>
+                </div>
+            </div>
+        `;
+
+        // Store data for filtering
+        modal.changesByRegion = changesByRegion;
+        modal.allChanges = ipChanges;
+
+        // Close modal when clicking overlay
+        modal.onclick = (e) => {
+            if (e.target === modal) {
+                modal.remove();
+            }
+        };
+
+        document.body.appendChild(modal);
+        this.currentIPModal = modal;
+    }
+
+    showRegionChangesModal(title, ipChanges) {
+        const modal = document.createElement('div');
+        modal.className = 'changes-modal-overlay';
+
+        // Group changes by region
+        const changesByRegion = this.groupChangesByRegion(ipChanges);
+        const regions = Object.keys(changesByRegion).sort();
+
+        // Calculate stats
+        const totalRegions = regions.length;
+        const totalChanges = ipChanges.length;
+
+        modal.innerHTML = `
+            <div class="changes-modal">
+                <div class="changes-modal-header">
+                    <h3>🌍 ${title}</h3>
+                    <div class="changes-modal-stats">
+                        <span class="stat">🌍 ${totalRegions} regions affected</span>
+                        <span class="stat">📊 ${totalChanges} total changes</span>
+                    </div>
+                    <button class="close-modal" onclick="this.closest('.changes-modal-overlay').remove()">✕</button>
+                </div>
+                <div class="changes-modal-content">
+                    <div class="region-list">
+                        <h4>Click a region to see services that changed:</h4>
+                        <div class="region-search">
+                            <input type="text" id="regionSearchInput" placeholder="🔍 Search regions..." />
+                        </div>
+                        <div class="region-items">
+                            ${regions.map(region => {
+            const displayName = region === 'Global' ? '🌐 Global Services' : getRegionDisplayName(region);
+            const count = changesByRegion[region].length;
+            return `
+                                    <div class="region-item" data-region="${region}" data-display-name="${displayName.toLowerCase()}">
+                                        <div class="region-name">${displayName}</div>
+                                        <div class="region-count">${count} service${count !== 1 ? 's' : ''} changed</div>
+                                    </div>
+                                `;
+        }).join('')}
+                        </div>
+                    </div>
+                    <div class="services-for-region" style="display: none;">
+                        <div class="back-to-regions">
+                            <button class="back-btn">← Back to Regions</button>
+                        </div>
+                        <div id="regionServicesContainer"></div>
+                    </div>
+                </div>
+            </div>
+        `;
+
+        // Close modal when clicking overlay
+        modal.onclick = (e) => {
+            if (e.target === modal) {
+                modal.remove();
+            }
+        };
+
+        document.body.appendChild(modal);
+        this.currentRegionModal = modal;
+
+        // Add event listeners for region items
+        const regionItems = modal.querySelectorAll('.region-item');
+        regionItems.forEach(item => {
+            item.addEventListener('click', () => {
+                const region = item.dataset.region;
+                const regionChanges = changesByRegion[region];
+                this.showServicesForRegion(region, regionChanges, modal);
+            });
+        });
+
+        // Add back button listener
+        const backBtn = modal.querySelector('.back-btn');
+        if (backBtn) {
+            backBtn.addEventListener('click', () => {
+                modal.querySelector('.region-list').style.display = 'block';
+                modal.querySelector('.services-for-region').style.display = 'none';
+            });
+        }
+
+        // Add search functionality
+        const searchInput = modal.querySelector('#regionSearchInput');
+        if (searchInput) {
+            searchInput.addEventListener('input', (e) => {
+                const searchTerm = e.target.value.toLowerCase();
+                const allRegionItems = modal.querySelectorAll('.region-item');
+
+                allRegionItems.forEach(item => {
+                    const displayName = item.dataset.displayName || '';
+                    const region = item.dataset.region.toLowerCase();
+
+                    if (displayName.includes(searchTerm) || region.includes(searchTerm)) {
+                        item.style.display = 'flex';
+                    } else {
+                        item.style.display = 'none';
+                    }
+                });
+            });
+        }
+    }
+
+    showServicesForRegion(region, regionChanges, modal) {
+        const displayName = region === 'Global' ? '🌐 Global Services' : getRegionDisplayName(region);
+
+        // Hide region list and show services
+        modal.querySelector('.region-list').style.display = 'none';
+        modal.querySelector('.services-for-region').style.display = 'block';
+
+        // Group changes by service name
+        const serviceChanges = {};
+        regionChanges.forEach(change => {
+            const serviceName = change.service || 'Unknown Service';
+            if (!serviceChanges[serviceName]) {
+                serviceChanges[serviceName] = {
+                    service: serviceName,
+                    changes: []
+                };
+            }
+            serviceChanges[serviceName].changes.push(change);
+        });
+
+        const services = Object.keys(serviceChanges).sort();
+
+        const container = modal.querySelector('#regionServicesContainer');
+        container.innerHTML = `
+            <div class="region-services-header">
+                <h4>Services that changed in ${displayName}</h4>
+                <div class="services-stats">
+                    <span class="stat">🔧 ${services.length} services affected</span>
+                    <span class="stat">📊 ${regionChanges.length} total changes</span>
+                </div>
+            </div>
+            <div class="services-list">
+                ${services.map(serviceName => {
+            const serviceData = serviceChanges[serviceName];
+            const changes = serviceData.changes;
+            const addedCount = changes.filter(c => c.added && c.added.length > 0).reduce((sum, c) => sum + c.added.length, 0);
+            const removedCount = changes.filter(c => c.removed && c.removed.length > 0).reduce((sum, c) => sum + c.removed.length, 0);
+
+            return `
+                        <div class="service-change-item">
+                            <div class="service-info">
+                                <div class="service-name">${serviceName}</div>
+                                <div class="service-stats">
+                                    ${addedCount > 0 ? `<span class="added">+${addedCount} IPs</span>` : ''}
+                                    ${removedCount > 0 ? `<span class="removed">-${removedCount} IPs</span>` : ''}
+                                </div>
+                            </div>
+                            <div class="service-details" style="display: none;">
+                                ${changes.map(change => `
+                                    <div class="change-detail">
+                                        ${change.added && change.added.length > 0 ? `
+                                            <div class="added-ips">
+                                                <strong>Added IPs:</strong>
+                                                <div class="ip-list">${change.added.slice(0, 5).join(', ')}${change.added.length > 5 ? ` and ${change.added.length - 5} more...` : ''}</div>
+                                            </div>
+                                        ` : ''}
+                                        ${change.removed && change.removed.length > 0 ? `
+                                            <div class="removed-ips">
+                                                <strong>Removed IPs:</strong>
+                                                <div class="ip-list">${change.removed.slice(0, 5).join(', ')}${change.removed.length > 5 ? ` and ${change.removed.length - 5} more...` : ''}</div>
+                                            </div>
+                                        ` : ''}
+                                    </div>
+                                `).join('')}
+                            </div>
+                        </div>
+                    `;
+        }).join('')}
+            </div>
+        `;
+
+        // Add click handlers for service items
+        const serviceItems = container.querySelectorAll('.service-change-item');
+        serviceItems.forEach(item => {
+            item.addEventListener('click', () => {
+                const details = item.querySelector('.service-details');
+                const isVisible = details.style.display !== 'none';
+                details.style.display = isVisible ? 'none' : 'block';
+                item.classList.toggle('expanded', !isVisible);
+            });
+        });
+    }
+
+    showRegionDetails(regionName, regionChanges) {
+        // Close the region selector modal
+        if (this.currentRegionModal) {
+            this.currentRegionModal.remove();
+        }
+
+        // Show the IP changes for this specific region
+        const displayName = regionName === 'Global' ? '🌐 Global Services' : getRegionDisplayName(regionName);
+        this.showIPChangesModal(`${displayName} - IP Changes`, regionChanges);
+    }
+
+    groupChangesByRegion(changes) {
+        const groups = {};
+        changes.forEach(change => {
+            const region = change.region || 'Global';
+            if (!groups[region]) {
+                groups[region] = [];
+            }
+            groups[region].push(change);
+        });
+        return groups;
+    }
+
+    filterIPChangesByRegion(selectedRegion) {
+        if (!this.currentIPModal) return;
+
+        const modal = this.currentIPModal;
+        const container = modal.querySelector('#ipChangesContainer');
+
+        // Update active button
+        modal.querySelectorAll('.region-filter').forEach(btn => {
+            btn.classList.remove('active');
+        });
+        const selectedButton = modal.querySelector(`[onclick="dashboard.filterIPChangesByRegion('${selectedRegion}')"]`);
+        if (selectedButton) {
+            selectedButton.classList.add('active');
+        }
+
+        // Filter and render changes
+        let changesToShow;
+        if (selectedRegion === 'all') {
+            changesToShow = modal.allChanges;
+        } else {
+            changesToShow = modal.changesByRegion[selectedRegion] || [];
+        }
+
+        // Show loading state briefly for better UX
+        container.innerHTML = '<div class="loading-changes">Loading changes...</div>';
+
+        setTimeout(() => {
+            container.innerHTML = this.renderIPChangesList(changesToShow, selectedRegion);
+        }, 100);
+    }
+
+    showIPRangesHistory() {
+        const modal = document.createElement('div');
+        modal.className = 'changes-modal-overlay';
+
+        // Get current IP ranges count and changes
+        const currentCount = this.summaryData.total_ip_ranges || 0;
+        const totalIPChanges = this.summaryData.ip_changes || 0;
+        const lastUpdated = this.summaryData.last_updated || 'Unknown';
+
+        // Calculate previous count (current - net changes)
+        // We need to calculate net IP changes (added - removed)
+        let netIPChange = 0;
+        let addedIPs = 0;
+        let removedIPs = 0;
+
+        if (this.changesData && this.changesData.changes) {
+            this.changesData.changes.forEach(change => {
+                if (change.type === 'ip_changes' || change.change_type === 'ip_changes') {
+                    addedIPs += change.added_count || 0;
+                    removedIPs += change.removed_count || 0;
+                }
+            });
+            netIPChange = addedIPs - removedIPs;
+        }
+
+        const previousCount = currentCount - netIPChange;
+        const changeDirection = netIPChange >= 0 ? 'increase' : 'decrease';
+        const changeIcon = netIPChange >= 0 ? '📈' : '📉';
+        const changeColor = netIPChange >= 0 ? '#28a745' : '#dc3545';
+
+        // Create historical data display
+        const historyHtml = `
+            <div class="ip-history-content">
+                <div class="progression-display">
+                    <div class="progression-card">
+                        <h4>📊 IP Ranges Progression</h4>
+                        <div class="progression-flow">
+                            <div class="count-box previous">
+                                <div class="count-label">Previous Total</div>
+                                <div class="count-number">${previousCount.toLocaleString()}</div>
+                                <div class="count-date">Before this week's update</div>
+                            </div>
+                            
+                            <div class="progression-arrow">
+                                <div class="arrow-symbol">→</div>
+                                <div class="change-details">
+                                    <span class="change-badge" style="background-color: ${changeColor};">
+                                        ${changeIcon} ${netIPChange >= 0 ? '+' : ''}${netIPChange.toLocaleString()}
+                                    </span>
+                                </div>
+                            </div>
+                            
+                            <div class="count-box current">
+                                <div class="count-label">Current Total</div>
+                                <div class="count-number">${currentCount.toLocaleString()}</div>
+                                <div class="count-date">${new Date(lastUpdated).toLocaleDateString()}</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="change-breakdown">
+                    <h4>📊 This Week's Changes</h4>
+                    <div class="breakdown-stats">
+                        <div class="breakdown-item added">
+                            <span class="breakdown-number">+${addedIPs.toLocaleString()}</span>
+                            <span class="breakdown-label">IP ranges added</span>
+                        </div>
+                        <div class="breakdown-item removed">
+                            <span class="breakdown-number">-${removedIPs.toLocaleString()}</span>
+                            <span class="breakdown-label">IP ranges removed</span>
+                        </div>
+                        <div class="breakdown-item net">
+                            <span class="breakdown-number" style="color: ${changeColor};">
+                                ${netIPChange >= 0 ? '+' : ''}${netIPChange.toLocaleString()}
+                            </span>
+                            <span class="breakdown-label">Net change</span>
+                        </div>
+                    </div>
+                </div>
+        `;
+
+        modal.innerHTML = `
+            <div class="changes-modal ip-history-modal">
+                <div class="changes-modal-header">
+                    <h3>📊 IP Ranges History</h3>
+                    <div class="changes-modal-stats">
+                        <span class="stat-item">📈 Tracking ${currentCount.toLocaleString()} IP ranges</span>
+                    </div>
+                    <button onclick="this.closest('.changes-modal-overlay').remove()" class="close-modal-btn">&times;</button>
+                </div>
+                <div class="changes-modal-body">
+                    ${historyHtml}
+                </div>
+            </div>
+        `;
+
+        // Close modal when clicking overlay
+        modal.onclick = (e) => {
+            if (e.target === modal) {
+                modal.remove();
+            }
+        };
+
+        document.body.appendChild(modal);
+    }
+
+    renderIPChangesList(changes, region) {
+        if (changes.length === 0) {
+            return `<div class="no-changes">No IP changes found${region !== 'all' ? ` in ${getRegionDisplayName(region)}` : ''}.</div>`;
+        }
+
+        const displayLimit = 30;
+        const displayChanges = changes.slice(0, displayLimit);
+
+        const changesHtml = displayChanges.map(change => {
+            return this.renderIPChangeItemDetailed(change);
+        }).join('');
+
+        return `
+            <div class="ip-changes-list">
+                ${changesHtml}
+            </div>
+            ${changes.length > displayLimit ?
+                `<div class="changes-footer">
+                    <p><strong>Showing ${displayLimit} of ${changes.length} changes${region !== 'all' ? ` in ${getRegionDisplayName(region)}` : ''}</strong></p>
+                    <a href="./data/changes/latest-changes.json" target="_blank" class="view-all-link">📄 View complete data file</a>
+                </div>` : ''
+            }
+        `;
+    }
+
+    generateIPChangeStats(changes) {
+        const totalAdded = changes.reduce((sum, c) => sum + (c.added_count || 0), 0);
+        const totalRemoved = changes.reduce((sum, c) => sum + (c.removed_count || 0), 0);
+        const servicesAffected = new Set(changes.map(c => c.service)).size;
+        const regionsAffected = new Set(changes.map(c => c.region || 'Global')).size;
+
+        return `
+            <div class="ip-change-stats">
+                <span class="stat-item">🏷️ ${servicesAffected} services</span>
+                <span class="stat-item">🌍 ${regionsAffected} regions</span>
+                <span class="stat-item">➕ ${totalAdded} IPs added</span>
+                <span class="stat-item">➖ ${totalRemoved} IPs removed</span>
+            </div>
+        `;
+    }
+
+    generateChangeStats(changes, type) {
+        const stats = {
+            total: changes.length,
+            ipChanges: changes.filter(c => c.type === 'ip_changes').length,
+            serviceAdded: changes.filter(c => c.type === 'service_added').length,
+            serviceRemoved: changes.filter(c => c.type === 'service_removed').length,
+            totalIPsAdded: changes.reduce((sum, c) => sum + (c.added_count || 0), 0),
+            totalIPsRemoved: changes.reduce((sum, c) => sum + (c.removed_count || 0), 0)
+        };
+
+        return `
+            <div class="change-stats">
+                <span class="stat-item">📈 ${stats.total} total changes</span>
+                <span class="stat-item">➕ ${stats.totalIPsAdded} IPs added</span>
+                <span class="stat-item">➖ ${stats.totalIPsRemoved} IPs removed</span>
+            </div>
+        `;
+    }
+
+    renderChangeItemDetailed(change) {
+        const changeTypeClass = change.type.replace('_', '-');
+        const changeTypeLabel = this.formatChangeType(change.type);
+        const regionDisplay = getRegionDisplayName(change.region || '');
+
+        if (change.type === 'ip_changes') {
+            const addedCount = change.added_count || 0;
+            const removedCount = change.removed_count || 0;
+
+            return `
+                <div class="change-item detailed ${changeTypeClass}">
+                    <div class="change-header">
+                        <div class="change-service">
+                            <strong>${change.service}</strong>
+                            <span class="change-region">${regionDisplay}</span>
+                        </div>
+                        <div class="change-type-badge">${changeTypeLabel}</div>
+                    </div>
+                    <div class="change-details">
+                        <div class="change-summary">
+                            <span class="change-stat added">➕ ${addedCount} IPs added</span>
+                            <span class="change-stat removed">➖ ${removedCount} IPs removed</span>
+                        </div>
+                        ${addedCount > 0 && addedCount <= 10 ?
+                    `<div class="ip-list">
+                                <strong>Added IPs:</strong>
+                                ${change.added_prefixes.slice(0, 10).map(ip => `<code>${ip}</code>`).join(' ')}
+                            </div>` : ''
+                }
+                        ${removedCount > 0 && removedCount <= 10 ?
+                    `<div class="ip-list">
+                                <strong>Removed IPs:</strong>
+                                ${change.removed_prefixes.slice(0, 10).map(ip => `<code>${ip}</code>`).join(' ')}
+                            </div>` : ''
+                }
+                        ${addedCount > 10 || removedCount > 10 ?
+                    `<p class="more-ips">... and ${Math.max(0, addedCount - 10) + Math.max(0, removedCount - 10)} more IP ranges</p>` : ''
+                }
+                    </div>
+                </div>
+            `;
+        } else {
+            // Service added/removed
+            return `
+                <div class="change-item detailed ${changeTypeClass}">
+                    <div class="change-header">
+                        <div class="change-service">
+                            <strong>${change.service}</strong>
+                            <span class="change-region">${regionDisplay}</span>
+                        </div>
+                        <div class="change-type-badge">${changeTypeLabel}</div>
+                    </div>
+                    <div class="change-details">
+                        ${change.ip_count ? `<p>${change.ip_count} IP ranges</p>` : ''}
+                        ${change.system_service ? `<p>System Service: ${change.system_service}</p>` : ''}
+                    </div>
+                </div>
+            `;
+        }
+    }
+
+    renderIPChangeItemDetailed(change) {
+        const regionDisplay = getRegionDisplayName(change.region);
+        const addedIPs = change.added || [];
+        const removedIPs = change.removed || [];
+
+        const hasAddedIPs = addedIPs.length > 0;
+        const hasRemovedIPs = removedIPs.length > 0;
+
+        // Limit displayed IPs to prevent overwhelming UI
+        const displayLimit = 10;
+        const displayedAddedIPs = addedIPs.slice(0, displayLimit);
+        const displayedRemovedIPs = removedIPs.slice(0, displayLimit);
+
+        let content = `
+            <div class="ip-change-header">
+                <div class="service-info">
+                    <span class="service-name">${change.service}</span>
+                    <span class="region-tag">${regionDisplay}</span>
+                </div>
+                <div class="change-counts">
+                    ${hasAddedIPs ? `<span class="added-count">+${addedIPs.length}</span>` : ''}
+                    ${hasRemovedIPs ? `<span class="removed-count">-${removedIPs.length}</span>` : ''}
+                </div>
+            </div>
+        `;
+
+        if (hasAddedIPs) {
+            content += `
+                <div class="ip-changes-section added-section">
+                    <div class="section-header">
+                        <span class="section-title">➕ Added IP Ranges (${addedIPs.length})</span>
+                        ${addedIPs.length > 0 ? `<button class="copy-ips-btn" onclick="dashboard.copyIPsToClipboard(${JSON.stringify(addedIPs).replace(/"/g, '&quot;')}, 'added IPs for ${change.service}')">📋 Copy</button>` : ''}
+                    </div>
+                    <div class="ip-list">
+                        ${displayedAddedIPs.map(ip => `<code class="ip-range added">${ip}</code>`).join('')}
+                        ${addedIPs.length > displayLimit ? `<span class="more-ips">... and ${addedIPs.length - displayLimit} more</span>` : ''}
+                    </div>
+                </div>
+            `;
+        }
+
+        if (hasRemovedIPs) {
+            content += `
+                <div class="ip-changes-section removed-section">
+                    <div class="section-header">
+                        <span class="section-title">➖ Removed IP Ranges (${removedIPs.length})</span>
+                        ${removedIPs.length > 0 ? `<button class="copy-ips-btn" onclick="dashboard.copyIPsToClipboard(${JSON.stringify(removedIPs).replace(/"/g, '&quot;')}, 'removed IPs for ${change.service}')">📋 Copy</button>` : ''}
+                    </div>
+                    <div class="ip-list">
+                        ${displayedRemovedIPs.map(ip => `<code class="ip-range removed">${ip}</code>`).join('')}
+                        ${removedIPs.length > displayLimit ? `<span class="more-ips">... and ${removedIPs.length - displayLimit} more</span>` : ''}
+                    </div>
+                </div>
+            `;
+        }
+
+        return `<div class="ip-change-item detailed">${content}</div>`;
+    }
+
+    copyIPsToClipboard(ips, description) {
+        const text = ips.join('\n');
+        navigator.clipboard.writeText(text).then(() => {
+            // Show temporary feedback
+            const feedback = document.createElement('div');
+            feedback.textContent = `✅ Copied ${ips.length} ${description}`;
+            feedback.style.cssText = `
+                position: fixed; top: 20px; right: 20px; 
+                background: #28a745; color: white; 
+                padding: 10px 15px; border-radius: 5px; 
+                z-index: 10001; font-size: 14px;
+            `;
+            document.body.appendChild(feedback);
+            setTimeout(() => feedback.remove(), 2000);
+        }).catch(err => {
+            console.error('Failed to copy:', err);
+        });
     }
 
     // Utility methods
@@ -681,7 +1456,16 @@ class AzureServiceTagsDashboard {
 let dashboard;
 document.addEventListener('DOMContentLoaded', () => {
     dashboard = new AzureServiceTagsDashboard();
+    // Make dashboard globally accessible for onclick handlers
+    window.dashboard = dashboard;
 });
 
-// Make dashboard globally accessible for onclick handlers
-window.dashboard = dashboard;
+// Debug function for troubleshooting
+window.debugDashboard = function () {
+    console.log('=== Dashboard Debug Info ===');
+    console.log('Dashboard object:', dashboard);
+    console.log('Summary data:', dashboard?.summaryData);
+    console.log('Changes data:', dashboard?.changesData);
+    console.log('Current data length:', dashboard?.currentData?.values?.length);
+    alert('Debug info logged to console. Press F12 to view.');
+};

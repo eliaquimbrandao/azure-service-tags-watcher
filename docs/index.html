@@ -72,6 +72,12 @@
         </div>
     </header>
 
+    <!-- Debug Panel (temporary) -->
+    <div class="debug-panel">
+        <button onclick="location.reload(true)" class="debug-btn refresh-btn">🔄 Hard Refresh</button>
+        <button onclick="window.debugDashboard()" class="debug-btn debug-btn-main">🐛 Debug</button>
+    </div>
+
     <main class="main-content">
         <div class="container">
 
@@ -99,43 +105,31 @@
                                 <p>Total Services</p>
                             </div>
                         </article>
-                        <article class="stat-card">
+                        <article class="stat-card clickable-stat" onclick="dashboard.showIPRangesHistory()"
+                            title="Click to see IP ranges history">
                             <div class="stat-icon">📊</div>
                             <div class="stat-content">
                                 <h3 id="totalIPRanges">0</h3>
                                 <p>Total IP Ranges</p>
                             </div>
                         </article>
-                        <article class="stat-card">
+                        <article class="stat-card clickable-stat" onclick="dashboard.showAllChanges()"
+                            title="Click to see all changes this week">
                             <div class="stat-icon">📈</div>
                             <div class="stat-content">
                                 <h3 id="changesThisWeek">0</h3>
                                 <p>Changes This Week</p>
                             </div>
                         </article>
-                        <article class="stat-card">
-                            <div class="stat-icon">🔄</div>
+                        <article class="stat-card clickable-stat" onclick="dashboard.showRegionChanges()"
+                            title="Click to see region changes">
+                            <div class="stat-icon">🌍</div>
                             <div class="stat-content">
                                 <h3 id="ipChanges">0</h3>
-                                <p>IP Range Changes</p>
+                                <p>Region Changes</p>
                             </div>
                         </article>
                     </div>
-                </section>
-
-                <!-- Service Search -->
-                <section class="search-section">
-                    <header class="section-header">
-                        <h2>🔍 Search Services</h2>
-                        <p>Find specific Azure services and their configurations</p>
-                    </header>
-                    <div class="search-container">
-                        <input type="search" id="serviceSearch"
-                            placeholder="Search Azure services (e.g. Storage, SQL, WestEurope)..."
-                            aria-label="Search Azure services">
-                        <button id="clearSearch" class="clear-btn" aria-label="Clear search">Clear</button>
-                    </div>
-                    <div id="searchResults" class="search-results" role="region" aria-label="Search Results"></div>
                 </section>
 
                 <!-- Analytics Dashboard -->
