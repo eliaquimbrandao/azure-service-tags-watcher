@@ -161,6 +161,7 @@ class AzureServiceTagsDashboard {
         this.renderLastUpdated();
         this.renderCharts();
         this.renderRecentChanges();
+        this.initializeGlobalSearch();
 
         this.isRendered = true;
     }
@@ -238,7 +239,7 @@ class AzureServiceTagsDashboard {
             return;
         }
 
-        // Calculate all active services from changes data
+        // Calculate all active services from changes data with historical context
         const changes = this.changesData.changes || [];
         const serviceCounts = {};
         const serviceIPCounts = {};
@@ -260,16 +261,141 @@ class AzureServiceTagsDashboard {
             }
         });
 
-        // Convert to array and sort by change count
-        const allServices = Object.entries(serviceCounts)
-            .map(([service, count]) => ({
-                service,
-                change_count: count,
-                ip_added: serviceIPCounts[service].added,
-                ip_removed: serviceIPCounts[service].removed,
-                net_ip_change: serviceIPCounts[service].added - serviceIPCounts[service].removed
-            }))
-            .sort((a, b) => b.change_count - a.change_count);
+        // Load historical data to calculate true "activity" (services that change frequently over time)
+        this.loadHistoricalActivity().then(historicalActivity => {
+            const allServices = Object.entries(serviceCounts)
+                .map(([service, count]) => {
+                    const ipAdded = serviceIPCounts[service].added;
+                    const ipRemoved = serviceIPCounts[service].removed;
+                    const totalIPChange = ipAdded + ipRemoved;
+
+                    // Calculate activity score combining:
+                    // 1. Historical frequency (how many weeks this service changed)
+                    // 2. IP impact (total IPs changed this week)
+                    // 3. Change count this week (number of regions affected)
+                    const historicalFrequency = historicalActivity[service] || 0;
+                    const activityScore = (historicalFrequency * 100) + (totalIPChange * 0.1) + (count * 10);
+
+                    return {
+                        service,
+                        change_count: count,
+                        ip_added: ipAdded,
+                        ip_removed: ipRemoved,
+                        net_ip_change: ipAdded - ipRemoved,
+                        historical_weeks: historicalFrequency,
+                        activity_score: activityScore
+                    };
+                })
+                // Sort by activity score (highest = most active over time)
+                .sort((a, b) => b.activity_score - a.activity_score);
+
+            this.renderServicesList(container, allServices);
+        }).catch(error => {
+            console.error('Error loading historical activity:', error);
+            // Fallback: sort by IP impact if historical data fails
+            const allServices = Object.entries(serviceCounts)
+                .map(([service, count]) => ({
+                    service,
+                    change_count: count,
+                    ip_added: serviceIPCounts[service].added,
+                    ip_removed: serviceIPCounts[service].removed,
+                    net_ip_change: serviceIPCounts[service].added - serviceIPCounts[service].removed,
+                    historical_weeks: 0,
+                    activity_score: (serviceIPCounts[service].added + serviceIPCounts[service].removed)
+                }))
+                .sort((a, b) => b.activity_score - a.activity_score);
+
+            this.renderServicesList(container, allServices);
+        });
+    }
+
+    async loadHistoricalActivity() {
+        // Load all historical change files to calculate frequency
+        const historicalActivity = {};
+
+        try {
+            // Load manifest to get list of all change files
+            const manifestResponse = await fetch('data/changes/manifest.json');
+            if (!manifestResponse.ok) {
+                console.log('Manifest not found, falling back to known files');
+                // Fallback to known files if manifest doesn't exist
+                return this.loadHistoricalActivityFallback();
+            }
+
+            const manifest = await manifestResponse.json();
+            console.log(`Loading ${manifest.total_files} historical change files...`);
+
+            // Load each historical change file
+            for (const fileInfo of manifest.files) {
+                try {
+                    const response = await fetch(`data/changes/${fileInfo.filename}`);
+                    if (response.ok) {
+                        const data = await response.json();
+                        const services = new Set();
+
+                        // Count unique services in this week's changes
+                        (data.changes || []).forEach(change => {
+                            if (change.service) {
+                                services.add(change.service);
+                            }
+                        });
+
+                        // Increment week count for each service found
+                        services.forEach(service => {
+                            historicalActivity[service] = (historicalActivity[service] || 0) + 1;
+                        });
+
+                        console.log(`Loaded ${fileInfo.filename}: ${services.size} unique services`);
+                    }
+                } catch (err) {
+                    console.log(`Could not load ${fileInfo.filename}:`, err.message);
+                }
+            }
+
+            const totalServices = Object.keys(historicalActivity).length;
+            const maxWeeks = Math.max(...Object.values(historicalActivity), 0);
+            console.log(`Historical analysis complete: ${totalServices} services tracked, max frequency: ${maxWeeks} weeks`);
+
+            return historicalActivity;
+        } catch (error) {
+            console.error('Error in loadHistoricalActivity:', error);
+            return this.loadHistoricalActivityFallback();
+        }
+    }
+
+    async loadHistoricalActivityFallback() {
+        // Fallback method when manifest is not available
+        const historicalActivity = {};
+        const changeFiles = ['2025-10-08-changes.json', '2025-10-10-changes.json'];
+
+        console.log('Using fallback method to load historical data');
+
+        for (const fileName of changeFiles) {
+            try {
+                const response = await fetch(`data/changes/${fileName}`);
+                if (response.ok) {
+                    const data = await response.json();
+                    const services = new Set();
+
+                    (data.changes || []).forEach(change => {
+                        if (change.service) {
+                            services.add(change.service);
+                        }
+                    });
+
+                    services.forEach(service => {
+                        historicalActivity[service] = (historicalActivity[service] || 0) + 1;
+                    });
+                }
+            } catch (err) {
+                console.log(`Could not load ${fileName}:`, err.message);
+            }
+        }
+
+        return historicalActivity;
+    }
+
+    renderServicesList(container, allServices) {
 
         if (allServices.length === 0) {
             container.innerHTML = '<p>No service activity data available</p>';
@@ -306,13 +432,23 @@ class AzureServiceTagsDashboard {
                 ipIndicator = '⚪ No IP changes';
             }
 
+            // Add historical frequency indicator
+            const frequencyBadge = service.historical_weeks > 1
+                ? `<span class="frequency-badge" title="Changed in ${service.historical_weeks} of the last weeks">🔥 ${service.historical_weeks}× weeks</span>`
+                : '';
+
             return `
-                <div class="service-rank-item" data-service-name="${service.service.replace(/"/g, '&quot;')}" title="Click to view details for ${service.service.replace(/"/g, '&quot;')}">
+                <div class="service-rank-item" 
+                     data-service-name="${service.service.replace(/"/g, '&quot;')}" 
+                     title="Click to view details for ${service.service.replace(/"/g, '&quot;')}">
                     <div class="rank-number">${actualRank}</div>
                     <div class="service-details">
-                        <div class="service-name">${service.service}</div>
+                        <div class="service-name">
+                            ${service.service}
+                            ${frequencyBadge}
+                        </div>
                         <div class="change-count">
-                            ${service.change_count} change${service.change_count !== 1 ? 's' : ''} • ${ipIndicator}
+                            ${service.change_count} change${service.change_count !== 1 ? 's' : ''} this week • ${ipIndicator}
                         </div>
                     </div>
                 </div>
@@ -581,6 +717,7 @@ class AzureServiceTagsDashboard {
     renderChangeItem(change) {
         const changeTypeClass = change.type.replace('_', '-');
         const changeTypeLabel = this.formatChangeType(change.type);
+        const changeId = `change-${Math.random().toString(36).substr(2, 9)}`;
 
         let detailsHtml = '';
 
@@ -589,16 +726,57 @@ class AzureServiceTagsDashboard {
                 ? getRegionDisplayName(change.region)
                 : '🌐 Global';
 
+            const hasAdditions = change.added_count > 0;
+            const hasRemovals = change.removed_count > 0;
+            const totalChanges = (change.added_count || 0) + (change.removed_count || 0);
+
             detailsHtml = `
                 <div class="change-details">
                     <strong>Region:</strong> ${regionDisplay}
                     ${change.system_service ? ` | <strong>System Service:</strong> ${change.system_service}` : ''}
                 </div>
-                <div class="ip-change-summary">
-                    ${change.added_count > 0 ?
-                    `<span class="ip-added">+${change.added_count} IP ranges added</span>` : ''}
-                    ${change.removed_count > 0 ?
-                    `<span class="ip-removed">-${change.removed_count} IP ranges removed</span>` : ''}
+                <button class="view-ips-btn" onclick="dashboard.toggleIPDetails('${changeId}')">
+                    📋 View IP Details (${totalChanges} changes)
+                </button>
+                <div id="${changeId}" class="ip-details-container" style="display: none;">
+                    <div class="ip-details-content">
+                        ${hasAdditions ? `
+                            <div class="ip-section">
+                                <div class="ip-section-header">
+                                    <h4 class="ip-section-title added">✅ Added IP Ranges (${change.added_count})</h4>
+                                    <button class="copy-btn-small copy-ips-btn" data-ips="${this.escapeForDataAttr(JSON.stringify(change.added_prefixes || []))}" data-label="added IPs for ${this.escapeForDataAttr(change.service)}">
+                                        📋 Copy
+                                    </button>
+                                </div>
+                                <div class="ip-list">
+                                    ${(change.added_prefixes || []).slice(0, 20).map(ip =>
+                `<div class="ip-item added">${ip}</div>`
+            ).join('')}
+                                    ${change.added_prefixes && change.added_prefixes.length > 20 ?
+                        `<div class="ip-item-more">... and ${change.added_prefixes.length - 20} more</div>`
+                        : ''}
+                                </div>
+                            </div>
+                        ` : ''}
+                        ${hasRemovals ? `
+                            <div class="ip-section">
+                                <div class="ip-section-header">
+                                    <h4 class="ip-section-title removed">❌ Removed IP Ranges (${change.removed_count})</h4>
+                                    <button class="copy-btn-small copy-ips-btn" data-ips="${this.escapeForDataAttr(JSON.stringify(change.removed_prefixes || []))}" data-label="removed IPs for ${this.escapeForDataAttr(change.service)}">
+                                        📋 Copy
+                                    </button>
+                                </div>
+                                <div class="ip-list">
+                                    ${(change.removed_prefixes || []).slice(0, 20).map(ip =>
+                            `<div class="ip-item removed">${ip}</div>`
+                        ).join('')}
+                                    ${change.removed_prefixes && change.removed_prefixes.length > 20 ?
+                        `<div class="ip-item-more">... and ${change.removed_prefixes.length - 20} more</div>`
+                        : ''}
+                                </div>
+                            </div>
+                        ` : ''}
+                    </div>
                 </div>
             `;
         } else if (change.type === 'service_added') {
@@ -627,6 +805,61 @@ class AzureServiceTagsDashboard {
                 ${detailsHtml}
             </div>
         `;
+    }
+
+    toggleIPDetails(changeId) {
+        const container = document.getElementById(changeId);
+        const btn = container.previousElementSibling;
+
+        if (container.style.display === 'none') {
+            container.style.display = 'block';
+            btn.textContent = btn.textContent.replace('📋 View', '🔼 Hide');
+        } else {
+            container.style.display = 'none';
+            btn.textContent = btn.textContent.replace('🔼 Hide', '📋 View');
+        }
+    }
+
+    async copyIPsToClipboard(ipsArray, label) {
+        try {
+            // Validate input
+            if (!ipsArray || !Array.isArray(ipsArray) || ipsArray.length === 0) {
+                this.showCopyFeedback('error', 'No IP addresses to copy');
+                return;
+            }
+
+            // Join IPs with newlines for easy pasting
+            const ipsText = ipsArray.join('\n');
+
+            // Use Clipboard API
+            await navigator.clipboard.writeText(ipsText);
+
+            // Show success feedback
+            this.showCopyFeedback('success', `Copied ${ipsArray.length} ${label} to clipboard`);
+        } catch (error) {
+            console.error('Failed to copy to clipboard:', error);
+            this.showCopyFeedback('error', 'Failed to copy. Please try again.');
+        }
+    }
+
+    showCopyFeedback(type, message) {
+        // Remove any existing feedback
+        const existingFeedback = document.querySelector('.copy-feedback');
+        if (existingFeedback) {
+            existingFeedback.remove();
+        }
+
+        // Create feedback element
+        const feedback = document.createElement('div');
+        feedback.className = `copy-feedback ${type}`;
+        feedback.textContent = message;
+        document.body.appendChild(feedback);
+
+        // Auto-remove after 2 seconds
+        setTimeout(() => {
+            feedback.classList.add('fade-out');
+            setTimeout(() => feedback.remove(), 300);
+        }, 2000);
     }
 
 
@@ -666,6 +899,25 @@ class AzureServiceTagsDashboard {
         document.addEventListener('keydown', (e) => {
             if (e.key === 'Escape' && modal && !modal.classList.contains('hidden')) {
                 modal.classList.add('hidden');
+            }
+        });
+
+        // Event delegation for copy IP buttons
+        document.addEventListener('click', (e) => {
+            if (e.target.classList.contains('copy-ips-btn') || e.target.closest('.copy-ips-btn')) {
+                const btn = e.target.classList.contains('copy-ips-btn') ? e.target : e.target.closest('.copy-ips-btn');
+                const ipsJson = btn.dataset.ips;
+                const label = btn.dataset.label;
+
+                if (ipsJson && label) {
+                    try {
+                        const ipsArray = JSON.parse(ipsJson);
+                        this.copyIPsToClipboard(ipsArray, label);
+                    } catch (error) {
+                        console.error('Failed to parse IPs:', error);
+                        this.showCopyFeedback('error', 'Failed to copy IPs');
+                    }
+                }
             }
         });
     }
@@ -724,26 +976,26 @@ class AzureServiceTagsDashboard {
             return this.renderChangeItemDetailed(change);
         }).join('');
 
-        const statsHtml = this.generateChangeStats(changes, type);
+        // Show search bar only for "All Changes This Week" card (type='all'), not for individual service details
+        const showSearch = type === 'all' || type === 'region';
 
         modal.innerHTML = `
             <div class="changes-modal">
                 <div class="changes-modal-header">
                     <h3>📊 ${title}</h3>
-                    <div class="changes-modal-stats">
-                        ${statsHtml}
-                    </div>
                     <button onclick="this.closest('.changes-modal-overlay').remove()" class="close-modal-btn">&times;</button>
                 </div>
                 <div class="changes-modal-body">
+                    ${showSearch ? `
                     <div class="search-section">
                         <input type="text" 
                                id="changesSearch" 
                                placeholder="🔍 Search by service name, region, or IP address..." 
                                class="changes-search-input"
                                oninput="dashboard.filterChanges(this.value)">
-                        <div class="search-results-count" id="searchResultsCount">Showing ${Math.min(displayLimit, changes.length)} of ${changes.length.toLocaleString()} changes</div>
+                        <div class="search-results-count" id="searchResultsCount" style="display: none;"></div>
                     </div>
+                    ` : ''}
                     <div class="changes-list" id="changesList">
                         ${changesHtml}
                     </div>
@@ -757,9 +1009,11 @@ class AzureServiceTagsDashboard {
             </div>
         `;
 
-        // Store data for filtering
-        modal.allChanges = changes;
-        modal.displayLimit = displayLimit;
+        // Store data for filtering (only if search is enabled)
+        if (showSearch) {
+            modal.allChanges = changes;
+            modal.displayLimit = displayLimit;
+        }
 
         // Close modal when clicking overlay
         modal.onclick = (e) => {
@@ -914,7 +1168,7 @@ class AzureServiceTagsDashboard {
                 </div>
                 <div class="changes-modal-content">
                     <div class="region-list">
-                        <h4>Click a region to see services that changed:</h4>
+                        <h4>Select a region to view services • Click or search below:</h4>
                         <div class="region-search">
                             <input type="text" id="regionSearchInput" placeholder="🔍 Search regions..." />
                         </div>
@@ -1272,7 +1526,12 @@ class AzureServiceTagsDashboard {
                         </div>
                         ${showAddedIPs ? `
                             <div class="ip-list">
-                                <strong>Added IPs:</strong>
+                                <div class="ip-list-header">
+                                    <strong>Added IPs:</strong>
+                                    <button class="copy-btn-small copy-ips-btn" data-ips="${this.escapeForDataAttr(JSON.stringify(addedPrefixes))}" data-label="added IPs for ${this.escapeForDataAttr(change.service)}">
+                                        📋 Copy
+                                    </button>
+                                </div>
                                 <div class="ip-container">
                                     ${addedPrefixes.slice(0, collapseThreshold).map(ip => `<code>${ip}</code>`).join(' ')}
                                     ${addedPrefixes.length > collapseThreshold ? `
@@ -1288,7 +1547,12 @@ class AzureServiceTagsDashboard {
                         ` : ''}
                         ${showRemovedIPs ? `
                             <div class="ip-list">
-                                <strong>Removed IPs:</strong>
+                                <div class="ip-list-header">
+                                    <strong>Removed IPs:</strong>
+                                    <button class="copy-btn-small copy-ips-btn" data-ips="${this.escapeForDataAttr(JSON.stringify(removedPrefixes))}" data-label="removed IPs for ${this.escapeForDataAttr(change.service)}">
+                                        📋 Copy
+                                    </button>
+                                </div>
                                 <div class="ip-container">
                                     ${removedPrefixes.slice(0, collapseThreshold).map(ip => `<code>${ip}</code>`).join(' ')}
                                     ${removedPrefixes.length > collapseThreshold ? `
@@ -1356,7 +1620,7 @@ class AzureServiceTagsDashboard {
                 <div class="ip-changes-section added-section">
                     <div class="section-header">
                         <span class="section-title">➕ Added IP Ranges (${addedIPs.length})</span>
-                        ${addedIPs.length > 0 ? `<button class="copy-ips-btn" onclick="dashboard.copyIPsToClipboard(${JSON.stringify(addedIPs).replace(/"/g, '&quot;')}, 'added IPs for ${change.service}')">📋 Copy</button>` : ''}
+                        ${addedIPs.length > 0 ? `<button class="copy-btn-small copy-ips-btn" data-ips="${this.escapeForDataAttr(JSON.stringify(addedIPs))}" data-label="added IPs for ${this.escapeForDataAttr(change.service)}">📋 Copy</button>` : ''}
                     </div>
                     <div class="ip-list">
                         ${displayedAddedIPs.map(ip => `<code class="ip-range added">${ip}</code>`).join('')}
@@ -1371,7 +1635,7 @@ class AzureServiceTagsDashboard {
                 <div class="ip-changes-section removed-section">
                     <div class="section-header">
                         <span class="section-title">➖ Removed IP Ranges (${removedIPs.length})</span>
-                        ${removedIPs.length > 0 ? `<button class="copy-ips-btn" onclick="dashboard.copyIPsToClipboard(${JSON.stringify(removedIPs).replace(/"/g, '&quot;')}, 'removed IPs for ${change.service}')">📋 Copy</button>` : ''}
+                        ${removedIPs.length > 0 ? `<button class="copy-btn-small copy-ips-btn" data-ips="${this.escapeForDataAttr(JSON.stringify(removedIPs))}" data-label="removed IPs for ${this.escapeForDataAttr(change.service)}">📋 Copy</button>` : ''}
                     </div>
                     <div class="ip-list">
                         ${displayedRemovedIPs.map(ip => `<code class="ip-range removed">${ip}</code>`).join('')}
@@ -1382,25 +1646,6 @@ class AzureServiceTagsDashboard {
         }
 
         return `<div class="ip-change-item detailed">${content}</div>`;
-    }
-
-    copyIPsToClipboard(ips, description) {
-        const text = ips.join('\n');
-        navigator.clipboard.writeText(text).then(() => {
-            // Show temporary feedback
-            const feedback = document.createElement('div');
-            feedback.textContent = `✅ Copied ${ips.length} ${description}`;
-            feedback.style.cssText = `
-                position: fixed; top: 20px; right: 20px; 
-                background: #28a745; color: white; 
-                padding: 10px 15px; border-radius: 5px; 
-                z-index: 10001; font-size: 14px;
-            `;
-            document.body.appendChild(feedback);
-            setTimeout(() => feedback.remove(), 2000);
-        }).catch(err => {
-            console.error('Failed to copy:', err);
-        });
     }
 
     toggleIPs(elementId, button) {
@@ -1430,6 +1675,213 @@ class AzureServiceTagsDashboard {
             'service_removed': 'Removed'
         };
         return types[type] || type;
+    }
+
+    escapeForDataAttr(str) {
+        return str.replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+    }
+
+    // Global Search Functionality
+    initializeGlobalSearch() {
+        const searchInput = document.getElementById('globalSearch');
+        const searchClear = document.getElementById('searchClear');
+        const searchResults = document.getElementById('searchResults');
+
+        if (!searchInput || !searchResults) return;
+
+        let searchTimeout;
+
+        // Handle search input
+        searchInput.addEventListener('input', (e) => {
+            const query = e.target.value.trim();
+
+            // Show/hide clear button
+            if (query) {
+                searchClear.classList.add('visible');
+            } else {
+                searchClear.classList.remove('visible');
+                searchResults.classList.add('hidden');
+                return;
+            }
+
+            // Debounce search
+            clearTimeout(searchTimeout);
+            searchTimeout = setTimeout(() => {
+                this.performGlobalSearch(query);
+            }, 300);
+        });
+
+        // Handle clear button
+        searchClear.addEventListener('click', () => {
+            searchInput.value = '';
+            searchClear.classList.remove('visible');
+            searchResults.classList.add('hidden');
+            searchInput.focus();
+        });
+
+        // Handle Enter key
+        searchInput.addEventListener('keypress', (e) => {
+            if (e.key === 'Enter') {
+                const query = searchInput.value.trim();
+                if (query) {
+                    this.performGlobalSearch(query);
+                }
+            }
+        });
+    }
+
+    performGlobalSearch(query) {
+        const searchResults = document.getElementById('searchResults');
+        const changes = this.changesData.changes || [];
+        const queryLower = query.toLowerCase();
+
+        // Search in services
+        const serviceMatches = [];
+        const serviceSet = new Set();
+
+        changes.forEach(change => {
+            const serviceName = change.service || '';
+            if (serviceName.toLowerCase().includes(queryLower) && !serviceSet.has(serviceName)) {
+                serviceSet.add(serviceName);
+                const serviceChanges = changes.filter(c => c.service === serviceName);
+                const ipAdded = serviceChanges.reduce((sum, c) => sum + (c.added_count || 0), 0);
+                const ipRemoved = serviceChanges.reduce((sum, c) => sum + (c.removed_count || 0), 0);
+
+                serviceMatches.push({
+                    type: 'service',
+                    name: serviceName,
+                    changeCount: serviceChanges.length,
+                    ipAdded,
+                    ipRemoved
+                });
+            }
+        });
+
+        // Search in regions
+        const regionMatches = [];
+        const regionSet = new Set();
+
+        changes.forEach(change => {
+            const region = change.region || '';
+            const displayName = region ? getRegionDisplayName(region) : '';
+
+            if ((region.toLowerCase().includes(queryLower) ||
+                displayName.toLowerCase().includes(queryLower)) &&
+                !regionSet.has(region)) {
+                regionSet.add(region);
+                const regionChanges = changes.filter(c => c.region === region);
+
+                regionMatches.push({
+                    type: 'region',
+                    name: region,
+                    displayName: displayName,
+                    changeCount: regionChanges.length
+                });
+            }
+        });
+
+        // Display results
+        this.displaySearchResults(serviceMatches, regionMatches, query);
+    }
+
+    displaySearchResults(services, regions, query) {
+        const searchResults = document.getElementById('searchResults');
+
+        if (services.length === 0 && regions.length === 0) {
+            searchResults.innerHTML = `
+                <div class="search-no-results">
+                    <div class="search-no-results-icon">🔍</div>
+                    <div>No results found for "<strong>${query}</strong>"</div>
+                    <div style="margin-top: 0.5rem; font-size: 0.9rem;">Try searching for service names like "Storage", "AzureAD" or regions like "East US"</div>
+                </div>
+            `;
+            searchResults.classList.remove('hidden');
+            return;
+        }
+
+        let html = '';
+
+        // Display service results
+        if (services.length > 0) {
+            services.slice(0, 10).forEach(service => {
+                const ipInfo = [];
+                if (service.ipAdded > 0) ipInfo.push(`+${service.ipAdded.toLocaleString()} IPs`);
+                if (service.ipRemoved > 0) ipInfo.push(`-${service.ipRemoved.toLocaleString()} IPs`);
+
+                html += `
+                    <div class="search-result-item" onclick="dashboard.showServiceDetails('${service.name.replace(/'/g, "\\'")}')">
+                        <div class="search-result-info">
+                            <div class="search-result-name">${service.name}</div>
+                            <div class="search-result-meta">
+                                ${service.changeCount} change${service.changeCount !== 1 ? 's' : ''} this week
+                                ${ipInfo.length > 0 ? ` • ${ipInfo.join(', ')}` : ''}
+                            </div>
+                        </div>
+                        <span class="search-result-badge service">Service</span>
+                    </div>
+                `;
+            });
+        }
+
+        // Display region results
+        if (regions.length > 0) {
+            regions.slice(0, 10).forEach(region => {
+                html += `
+                    <div class="search-result-item" onclick="dashboard.showRegionDetailsFromSearch('${region.name}')">
+                        <div class="search-result-info">
+                            <div class="search-result-name">${region.displayName}</div>
+                            <div class="search-result-meta">
+                                ${region.changeCount} change${region.changeCount !== 1 ? 's' : ''} this week
+                            </div>
+                        </div>
+                        <span class="search-result-badge region">Region</span>
+                    </div>
+                `;
+            });
+        }
+
+        // Add "showing X results" footer if there are more results
+        const totalResults = services.length + regions.length;
+        const displayedResults = Math.min(services.length, 10) + Math.min(regions.length, 10);
+        if (totalResults > displayedResults) {
+            html += `
+                <div style="padding: 1rem; text-align: center; color: #666; font-size: 0.9rem; background: #f8f9fa; border-top: 1px solid #e0e0e0;">
+                    Showing ${displayedResults} of ${totalResults} results
+                </div>
+            `;
+        }
+
+        searchResults.innerHTML = html;
+        searchResults.classList.remove('hidden');
+    }
+
+    showRegionDetailsFromSearch(regionName) {
+        const changes = this.changesData.changes || [];
+        const regionChanges = changes.filter(change => change.region === regionName);
+
+        if (regionChanges.length > 0) {
+            const displayName = getRegionDisplayName(regionName);
+            this.showIPChangesModal(`${displayName} - Changes This Week`, regionChanges);
+        }
+
+        // Clear search
+        const searchInput = document.getElementById('globalSearch');
+        const searchClear = document.getElementById('searchClear');
+        const searchResults = document.getElementById('searchResults');
+
+        if (searchInput) searchInput.value = '';
+        if (searchClear) searchClear.classList.remove('visible');
+        if (searchResults) searchResults.classList.add('hidden');
+    }
+
+    searchExample(query) {
+        const searchInput = document.getElementById('globalSearch');
+        if (searchInput) {
+            searchInput.value = query;
+            searchInput.focus();
+            this.performGlobalSearch(query);
+            document.getElementById('searchClear').classList.add('visible');
+        }
     }
 }
 

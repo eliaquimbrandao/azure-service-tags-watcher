@@ -87,6 +87,8 @@
             <div id="dashboard" class="dashboard hidden">
                 <!-- Quick Stats Overview -->
                 <section class="stats-overview">
+                    <p class="analytics-instruction">👆 Click on any card below to explore service or region changes
+                        this week</p>
                     <div class="stats-grid">
                         <article class="stat-card clickable-stat" onclick="dashboard.showIPRangesHistory()"
                             title="Click to see IP ranges history">
@@ -94,14 +96,16 @@
                             <div class="stat-content">
                                 <h3 id="totalIPRanges">0</h3>
                                 <p>Total IP Ranges</p>
+                                <span class="click-hint">👆 Click to view history</span>
                             </div>
                         </article>
                         <article class="stat-card clickable-stat" onclick="dashboard.showAllChanges()"
-                            title="Click to see all changes this week">
+                            title="Click to see all service changes this week">
                             <div class="stat-icon">📈</div>
                             <div class="stat-content">
                                 <h3 id="changesThisWeek">0</h3>
-                                <p>Changes This Week</p>
+                                <p>Service Changes This Week</p>
+                                <span class="click-hint">👆 Click to browse by services</span>
                             </div>
                         </article>
                         <article class="stat-card clickable-stat" onclick="dashboard.showRegionChanges()"
@@ -109,9 +113,33 @@
                             <div class="stat-icon">🌍</div>
                             <div class="stat-content">
                                 <h3 id="ipChanges">0</h3>
-                                <p>Region Changes</p>
+                                <p>Region Changes This Week</p>
+                                <span class="click-hint">👆 Click to browse by region</span>
                             </div>
                         </article>
+                    </div>
+                </section>
+
+                <!-- Global Search Section -->
+                <section class="search-section">
+                    <div class="search-container">
+                        <h2 class="search-title">🔍 Global Search</h2>
+                        <p class="search-subtitle">Search for any service or region to view detailed changes</p>
+                        <div class="search-box">
+                            <input type="text" id="globalSearch" class="search-input"
+                                placeholder="Type a service name (e.g., Storage, AppService) or region (e.g., East US, West Europe)..."
+                                autocomplete="off">
+                            <button class="search-clear" id="searchClear" title="Clear search">✕</button>
+                        </div>
+                        <div id="searchResults" class="search-results hidden"></div>
+                        <div class="search-hints">
+                            <span class="search-hint-item">💡 Try: <button class="search-example"
+                                    onclick="dashboard.searchExample('AzureMachineLearning')">AzureMachineLearning</button></span>
+                            <span class="search-hint-item">💡 Try: <button class="search-example"
+                                    onclick="dashboard.searchExample('StorageSyncService')">StorageSyncService</button></span>
+                            <span class="search-hint-item">💡 Try: <button class="search-example"
+                                    onclick="dashboard.searchExample('East US')">East US</button></span>
+                        </div>
                     </div>
                 </section>
 
@@ -119,16 +147,21 @@
                 <section class="analytics-section">
                     <header class="section-header">
                         <h2>📊 Analytics Dashboard</h2>
-                        <p>Visual insights into service activity and regional changes</p>
                     </header>
                     <div class="charts-grid">
                         <article class="chart-container">
-                            <h3>📈 Most Active Services</h3>
+                            <div class="chart-header">
+                                <h3>📈 Most Active Services</h3>
+                                <span class="chart-hint">👆 Click any service for details</span>
+                            </div>
                             <canvas id="activeServicesChart" role="img"
                                 aria-label="Chart showing most active Azure services"></canvas>
                         </article>
                         <article class="chart-container">
-                            <h3>🌍 Regional Hotspots</h3>
+                            <div class="chart-header">
+                                <h3>🌍 Regional Hotspots</h3>
+                                <span class="chart-hint">👆 Click any region for details</span>
+                            </div>
                             <canvas id="regionalChart" role="img"
                                 aria-label="Geographic regions with significant changes"></canvas>
                         </article>
