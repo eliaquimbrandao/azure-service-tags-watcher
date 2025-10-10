@@ -10,6 +10,15 @@
 
 A completely **FREE** solution using GitHub Actions + GitHub Pages to monitor all 3000+ Azure service tags and visualize changes over time.
 
+## ✨ Recent Updates (October 2025)
+
+- **🎨 Enhanced UI/UX**: Optimized modal spacing for a cleaner, more professional appearance
+- **📋 Improved Copy Functionality**: One-click copy-to-clipboard for IP ranges with visual feedback
+- **🔍 Smart Search**: Search by service name, region, or IP address in change modals
+- **📊 Better Organization**: Removed duplicate elements, improved instructional text
+- **📱 Consistent Design**: Matched spacing across all modals for uniform experience
+- **⚡ Performance**: Added manifest.json for efficient historical data tracking
+
 ## 🚀 Features
 
 - **📊 Interactive Dashboard** - Beautiful charts showing change frequency and trends
@@ -129,10 +138,13 @@ No additional packages, databases, or external services needed!
 ### Service Search & Discovery
 
 - **Interactive stat cards** - Click on IP Ranges, Changes This Week, or Region Changes to see detailed modals
-- **Expandable IP lists** - View first 10 IPs with "Show more" button for longer lists
-- **Detailed change tracking** - See exact IPs added/removed with copy functionality
+- **Smart search functionality** - Search by service name, region, or IP address in "All Changes" and regional modals
+- **One-click copy** - Copy IP ranges to clipboard with a single click (works for added/removed IPs)
+- **Expandable IP lists** - View first 20 IPs with automatic "show more" indicators
+- **Detailed change tracking** - See exact IPs added/removed with visual indicators (✅ added, ❌ removed)
 - **Service details modal** - View current IP ranges for any service by clicking on service name
 - **Region drill-down** - Two-level modal: select region → see all services with IP changes in that region
+- **Clean, modern UI** - Optimized spacing and professional design for better readability
 
 ### Change Tracking
 
