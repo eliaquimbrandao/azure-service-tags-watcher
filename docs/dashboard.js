@@ -976,7 +976,8 @@ class AzureServiceTagsDashboard {
             return this.renderChangeItemDetailed(change);
         }).join('');
 
-        // Show search bar only for "All Changes This Week" card (type='all'), not for individual service details
+        // Show search bar only for "All Changes This Week" card (type='all') or "Region Changes This Week" (type='region')
+        // Don't show for specific region from search (type='region-specific') or individual service details (type='service')
         const showSearch = type === 'all' || type === 'region';
 
         modal.innerHTML = `
@@ -1861,7 +1862,9 @@ class AzureServiceTagsDashboard {
 
         if (regionChanges.length > 0) {
             const displayName = getRegionDisplayName(regionName);
-            this.showIPChangesModal(`${displayName} - Changes This Week`, regionChanges);
+            // Use showChangesModal to directly show the services and IP changes for this region
+            // Pass 'region-specific' to avoid showing the search bar since user already searched
+            this.showChangesModal(`🗺️ ${displayName} - Changes This Week`, regionChanges, 'region-specific');
         }
 
         // Clear search
