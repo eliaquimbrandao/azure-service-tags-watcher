@@ -93,6 +93,7 @@ jobs:
 
       - name: Open Pull Request to main
         if: steps.commit_step.outputs.did_commit == 'true'
+        id: open_pr
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           REPO: ${{ github.repository }}
@@ -123,12 +124,69 @@ jobs:
 
           if [ "$HTTP_CODE" = "201" ]; then
             echo "Pull request created."
+            PR_NUMBER=$(jq -r '.number' /tmp/pr_resp.json)
+            echo "pr_number=$PR_NUMBER" >> "$GITHUB_OUTPUT"
           elif [ "$HTTP_CODE" = "422" ]; then
             echo "A pull request from ${BRANCH} to main may already exist. Response:"
             cat /tmp/pr_resp.json || true
-            # Not fatal
+            # Not fatal - try to get existing PR number
+            EXISTING_PR=$(curl -sS \
+              -H "Authorization: Bearer $GH_TOKEN" \
+              -H "Accept: application/vnd.github+json" \
+              "https://api.github.com/repos/${REPO}/pulls?head=${REPO%%/*}:${BRANCH}&base=main" | jq -r '.[0].number // empty')
+            if [ -n "$EXISTING_PR" ]; then
+              echo "pr_number=$EXISTING_PR" >> "$GITHUB_OUTPUT"
+            fi
           else
             echo "PR create failed with HTTP $HTTP_CODE. Response:"
             cat /tmp/pr_resp.json || true
             exit 1
+          fi
+
+      - name: Auto-merge Pull Request
+        if: steps.commit_step.outputs.did_commit == 'true' && steps.open_pr.outputs.pr_number != ''
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          REPO: ${{ github.repository }}
+        run: |
+          set -euo pipefail
+          PR_NUMBER="${{ steps.open_pr.outputs.pr_number }}"
+          
+          echo "🔄 Attempting to merge PR #$PR_NUMBER"
+          
+          # Wait a moment for PR to be fully created
+          sleep 3
+          
+          # Try to merge directly (will work if admin bypass is configured)
+          MERGE_DATA=$(jq -n \
+            --arg method "squash" \
+            --arg title "📈 Update Azure Service Tags data" \
+            '{merge_method: $method, commit_title: $title}')
+          
+          HTTP_CODE=$(curl -sS -o /tmp/merge_resp.json -w "%{http_code}" \
+            -H "Authorization: Bearer $GH_TOKEN" \
+            -H "Accept: application/vnd.github+json" \
+            -X PUT "https://api.github.com/repos/${REPO}/pulls/${PR_NUMBER}/merge" \
+            -d "$MERGE_DATA")
+          
+          if [ "$HTTP_CODE" = "200" ]; then
+            echo "✅ Pull request #$PR_NUMBER merged successfully!"
+            echo "🚀 GitHub Pages will deploy automatically in 1-2 minutes"
+          elif [ "$HTTP_CODE" = "405" ]; then
+            echo "⚠️ PR #$PR_NUMBER cannot be auto-merged (requires manual approval or ruleset changes)"
+            echo "Response:"
+            cat /tmp/merge_resp.json || true
+            echo ""
+            echo "ℹ️ The PR is open and ready for your review at:"
+            echo "   https://github.com/${REPO}/pull/${PR_NUMBER}"
+            # Not a failure - PR is still created for manual merge
+            exit 0
+          else
+            echo "❌ Merge failed with HTTP $HTTP_CODE. Response:"
+            cat /tmp/merge_resp.json || true
+            echo ""
+            echo "ℹ️ The PR is still open at:"
+            echo "   https://github.com/${REPO}/pull/${PR_NUMBER}"
+            # Not a failure - PR is still created
+            exit 0
           fi
