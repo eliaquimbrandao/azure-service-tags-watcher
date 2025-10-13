@@ -20,14 +20,16 @@ jobs:
   update-data:
     runs-on: ubuntu-latest
     permissions:
-      contents: write # Allow pushing to repository
-      actions: read # Allow reading workflow files
+      contents: write # allow pushing branches
+      pull-requests: write # allow opening PRs
+      actions: read
 
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
+          fetch-depth: 0
 
       - name: Set up Python
         uses: actions/setup-python@v4
@@ -36,12 +38,15 @@ jobs:
 
       - name: Install dependencies
         run: |
+          set -euo pipefail
           python -m pip install --upgrade pip
           pip install requests
 
       - name: Run Azure Service Tag Watcher
         run: |
-          if [ "${{ github.event.inputs.baseline_setup }}" == "true" ]; then
+          set -euo pipefail
+          BASELINE="${{ github.event.inputs.baseline_setup || 'false' }}"
+          if [ "$BASELINE" = "true" ]; then
             echo "🎯 Setting up initial baseline - no changes will be recorded"
             python scripts/azure_watcher.py --baseline
           else
@@ -49,21 +54,81 @@ jobs:
             python scripts/azure_watcher.py
           fi
 
-      - name: Configure Git
+      - name: Configure Git identity
         run: |
-          git config --local user.email "action@github.com"
-          git config --local user.name "GitHub Action"
+          git config --local user.email "eliaquimbrandao@users.noreply.github.com"
+          git config --local user.name "Eliaquim Brandao"
+          git config --global --add safe.directory "$GITHUB_WORKSPACE"
 
-      - name: Commit and push changes
+      - name: Create commit (if needed)
+        id: commit_step
         run: |
-          git add docs/data/
-          if git diff --staged --quiet; then
-            echo "No changes to commit"
+          set -euo pipefail
+          CHANGES="$(git status --porcelain=v1 docs/data || true)"
+          if [ -z "$CHANGES" ]; then
+            echo "No changes under docs/data; exiting early."
+            echo "did_commit=false" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+
+          git add -- docs/data
+          BASELINE="${{ github.event.inputs.baseline_setup || 'false' }}"
+          if [ "$BASELINE" = "true" ]; then
+            MSG="📊 Establish Azure Service Tags baseline - $(date -u '+%Y-%m-%d %H:%M:%S UTC')"
           else
-            if [ "${{ github.event.inputs.baseline_setup }}" == "true" ]; then
-              git commit -m "📊 Establish Azure Service Tags baseline - $(date '+%Y-%m-%d %H:%M:%S UTC')"
-            else
-              git commit -m "📈 Update Azure Service Tags data - $(date '+%Y-%m-%d %H:%M:%S UTC')"
-            fi
-            git push
+            MSG="📈 Update Azure Service Tags data - $(date -u '+%Y-%m-%d %H:%M:%S UTC')"
+          fi
+          git commit -m "$MSG"
+          echo "did_commit=true" >> "$GITHUB_OUTPUT"
+
+      - name: Create branch and push
+        if: steps.commit_step.outputs.did_commit == 'true'
+        id: push_branch
+        run: |
+          set -euo pipefail
+          BRANCH="data/update-$(date -u +%Y%m%d-%H%M%S)"
+          git checkout -b "$BRANCH"
+          git push -u origin "$BRANCH"
+          echo "branch_name=$BRANCH" >> "$GITHUB_OUTPUT"
+
+      - name: Open Pull Request to main
+        if: steps.commit_step.outputs.did_commit == 'true'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          REPO: ${{ github.repository }}
+        run: |
+          set -euo pipefail
+          # jq is available on ubuntu-latest; install if ever missing:
+          if ! command -v jq >/dev/null 2>&1; then
+            sudo apt-get update -y
+            sudo apt-get install -y jq
+          fi
+
+          BRANCH="${{ steps.push_branch.outputs.branch_name }}"
+          TITLE="Automated data update: $BRANCH"
+          BODY="This PR was opened by CI to merge the latest Azure Service Tags data in \`docs/data\`."
+
+          DATA=$(jq -n \
+            --arg title "$TITLE" \
+            --arg head  "$BRANCH" \
+            --arg base  "main" \
+            --arg body  "$BODY" \
+            '{title:$title, head:$head, base:$base, body:$body, draft:false}')
+
+          HTTP_CODE=$(curl -sS -o /tmp/pr_resp.json -w "%{http_code}" \
+            -H "Authorization: Bearer $GH_TOKEN" \
+            -H "Accept: application/vnd.github+json" \
+            -X POST "https://api.github.com/repos/${REPO}/pulls" \
+            -d "$DATA")
+
+          if [ "$HTTP_CODE" = "201" ]; then
+            echo "Pull request created."
+          elif [ "$HTTP_CODE" = "422" ]; then
+            echo "A pull request from ${BRANCH} to main may already exist. Response:"
+            cat /tmp/pr_resp.json || true
+            # Not fatal
+          else
+            echo "PR create failed with HTTP $HTTP_CODE. Response:"
+            cat /tmp/pr_resp.json || true
+            exit 1
           fi
