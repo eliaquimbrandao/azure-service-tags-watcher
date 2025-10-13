@@ -324,29 +324,42 @@ class AzureServiceTagsDashboard {
             }
 
             const manifest = await manifestResponse.json();
-            console.log(`Loading ${manifest.total_files} historical change files...`);
 
-            // Load each historical change file
-            for (const fileInfo of manifest.files) {
+            // Filter out baseline/initial data files (oldest date)
+            const oldestDate = manifest.date_range?.oldest;
+            const changeFiles = manifest.files.filter(fileInfo => fileInfo.date !== oldestDate);
+
+            console.log(`Loading ${changeFiles.length} actual change files (excluding baseline)...`);
+
+            // Load each historical change file (excluding baseline)
+            for (const fileInfo of changeFiles) {
                 try {
                     const response = await fetch(`data/changes/${fileInfo.filename}`);
                     if (response.ok) {
                         const data = await response.json();
-                        const services = new Set();
 
-                        // Count unique services in this week's changes
+                        // Count IP changes per service (total magnitude of changes)
                         (data.changes || []).forEach(change => {
                             if (change.service) {
-                                services.add(change.service);
+                                const serviceName = change.service;
+                                if (!historicalActivity[serviceName]) {
+                                    historicalActivity[serviceName] = {
+                                        changeCount: 0,
+                                        totalIPsAdded: 0,
+                                        totalIPsRemoved: 0,
+                                        totalIPChange: 0
+                                    };
+                                }
+
+                                // Track all metrics
+                                historicalActivity[serviceName].changeCount++;
+                                historicalActivity[serviceName].totalIPsAdded += (change.added_count || 0);
+                                historicalActivity[serviceName].totalIPsRemoved += (change.removed_count || 0);
+                                historicalActivity[serviceName].totalIPChange += (change.added_count || 0) + (change.removed_count || 0);
                             }
                         });
 
-                        // Increment week count for each service found
-                        services.forEach(service => {
-                            historicalActivity[service] = (historicalActivity[service] || 0) + 1;
-                        });
-
-                        console.log(`Loaded ${fileInfo.filename}: ${services.size} unique services`);
+                        console.log(`Loaded ${fileInfo.filename}: ${data.changes?.length || 0} changes`);
                     }
                 } catch (err) {
                     console.log(`Could not load ${fileInfo.filename}:`, err.message);
@@ -354,8 +367,7 @@ class AzureServiceTagsDashboard {
             }
 
             const totalServices = Object.keys(historicalActivity).length;
-            const maxWeeks = Math.max(...Object.values(historicalActivity), 0);
-            console.log(`Historical analysis complete: ${totalServices} services tracked, max frequency: ${maxWeeks} weeks`);
+            console.log(`Historical analysis complete: ${totalServices} services tracked`);
 
             return historicalActivity;
         } catch (error) {
@@ -396,10 +408,96 @@ class AzureServiceTagsDashboard {
         return historicalActivity;
     }
 
+    async showHistoricalInsights(container) {
+        // Show insights from historical data when no changes this week
+        try {
+            const historicalActivity = await this.loadHistoricalActivity();
+            const services = Object.entries(historicalActivity)
+                .map(([service, stats]) => ({
+                    service,
+                    changeCount: stats.changeCount,
+                    totalIPsAdded: stats.totalIPsAdded,
+                    totalIPsRemoved: stats.totalIPsRemoved,
+                    totalIPChange: stats.totalIPChange
+                }))
+                .sort((a, b) => b.totalIPChange - a.totalIPChange)  // Sort by total IP changes (magnitude)
+                .slice(0, 5);  // Show only top 5
+
+            if (services.length === 0) {
+                container.innerHTML = `
+                    <div class="no-changes-analytics">
+                        <div class="no-changes-icon">✨</div>
+                        <h3>No Changes This Week</h3>
+                        <p>All Azure Service Tags remain stable.</p>
+                        <div class="analytics-card">
+                            <p><strong>📊 Baseline established</strong></p>
+                            <p>Historical trends will appear here as data accumulates over time.</p>
+                        </div>
+                    </div>
+                `;
+                return;
+            }
+
+            // Show historical trends - Top 5 most active services by IP change magnitude
+            const topServicesHtml = services.map((item, index) => `
+                <div class="historical-insight-item" 
+                     onclick="dashboard.showServiceHistory('${item.service.replace(/'/g, "\\'")}')"
+                     title="Click to view ${item.service} history">
+                    <div class="rank-number">${index + 1}</div>
+                    <div class="service-details">
+                        <div class="service-name">${item.service}</div>
+                        <div class="service-meta">
+                            <span class="frequency-badge">🔥 ${item.changeCount} change${item.changeCount !== 1 ? 's' : ''} recorded</span>
+                            <span class="ip-details" style="font-size: 0.85rem; color: var(--text-secondary); margin-top: 0.25rem; display: block;">
+                                ${item.totalIPChange.toLocaleString()} total IPs affected (+${item.totalIPsAdded.toLocaleString()} • -${item.totalIPsRemoved.toLocaleString()})
+                            </span>
+                        </div>
+                    </div>
+                </div>
+            `).join('');
+
+            container.innerHTML = `
+                <div class="no-changes-analytics">
+                    <div class="no-changes-icon">✨</div>
+                    <h3>No Changes This Week</h3>
+                    <p>All Azure Service Tags remain stable.</p>
+                    
+                    <div class="analytics-card">
+                        <h4>📈 Top 5 Most Active Services</h4>
+                        <p style="font-size: 0.9rem; color: var(--text-secondary); margin-bottom: 1rem;">
+                            Services with the most significant activity (combining frequency and IP range changes)
+                        </p>
+                        <div class="historical-insights-list">
+                            ${topServicesHtml}
+                        </div>
+                    </div>
+
+                    <div class="analytics-tip">
+                        💡 <strong>Tip:</strong> Check the Change History Timeline below to explore past updates
+                    </div>
+                </div>
+            `;
+        } catch (error) {
+            console.error('Error showing historical insights:', error);
+            container.innerHTML = `
+                <div class="no-changes-analytics">
+                    <div class="no-changes-icon">✨</div>
+                    <h3>No Changes This Week</h3>
+                    <p>All Azure Service Tags remain stable.</p>
+                    <div class="analytics-card">
+                        <p><strong>📊 Monitoring continues</strong></p>
+                        <p>Check back next week for new updates or explore the Change History Timeline below.</p>
+                    </div>
+                </div>
+            `;
+        }
+    }
+
     renderServicesList(container, allServices) {
 
         if (allServices.length === 0) {
-            container.innerHTML = '<p>No service activity data available</p>';
+            // When no changes this week, show historical insights
+            this.showHistoricalInsights(container);
             return;
         }
 
@@ -552,7 +650,21 @@ class AzureServiceTagsDashboard {
         const regionalData = this.summaryData.regional_changes || {};
 
         if (Object.keys(regionalData).length === 0) {
-            regionalContainer.innerHTML = '<p>No regional change data available</p>';
+            // Show helpful message when no regional changes
+            regionalContainer.innerHTML = `
+                <div class="no-changes-analytics">
+                    <div class="no-changes-icon">🌍</div>
+                    <h3>No Regional Changes This Week</h3>
+                    <p>All Azure regional service tags remain stable.</p>
+                    <div class="analytics-card">
+                        <p><strong>🌐 Global Stability</strong></p>
+                        <p>No geographic region experienced service tag updates this week. This indicates stable infrastructure across all Azure regions.</p>
+                    </div>
+                    <div class="analytics-tip">
+                        💡 <strong>Tip:</strong> Historical regional trends will appear here as changes occur over time
+                    </div>
+                </div>
+            `;
             return;
         }
 
@@ -566,10 +678,26 @@ class AzureServiceTagsDashboard {
 
         if (significantRegions.length === 0) {
             regionalContainer.innerHTML = `
-                <h3>🌍 Regional Hotspots</h3>
-                <p>No geographic regions with significant changes (more than 3 services) this week</p>
-                <div class="region-help">
-                    💡 Showing only Azure geographic regions (Global services excluded)
+                <div class="no-changes-analytics">
+                    <div class="no-changes-icon">🌍</div>
+                    <h3>No Significant Regional Changes</h3>
+                    <p>Only minor updates detected this week.</p>
+                    <div class="analytics-card">
+                        <p><strong>🔍 Minor Activity Detected</strong></p>
+                        <p>While some regions had updates, none exceeded the threshold of 3+ service changes. This indicates routine maintenance rather than major infrastructure changes.</p>
+                        <div style="margin-top: 1rem; padding: 0.75rem; background: var(--background-color); border-radius: 6px;">
+                            <strong>Regions with minor changes:</strong>
+                            <div style="margin-top: 0.5rem;">
+                                ${sortedRegions.map(([region, count]) => {
+                const displayName = getRegionDisplayName(region);
+                return `<div style="padding: 0.25rem 0;">• ${displayName}: ${count} change${count !== 1 ? 's' : ''}</div>`;
+            }).join('')}
+                            </div>
+                        </div>
+                    </div>
+                    <div class="analytics-tip">
+                        💡 <strong>Note:</strong> Showing only geographic regions (Global services excluded)
+                    </div>
                 </div>
             `;
             return;
@@ -656,7 +784,7 @@ class AzureServiceTagsDashboard {
         }
     }
 
-    renderRecentChanges() {
+    async renderRecentChanges() {
         const changesContainer = document.getElementById('recentChanges');
         const changes = this.changesData.changes || [];
 
@@ -666,6 +794,9 @@ class AzureServiceTagsDashboard {
         }
 
         if (changes.length === 0) {
+            // Fetch last change date from manifest
+            let lastChangeInfo = await this.getLastChangeDate();
+
             changesContainer.innerHTML = `
                 <div class="change-item">
                     <div class="change-header">
@@ -673,6 +804,7 @@ class AzureServiceTagsDashboard {
                     </div>
                     <div class="change-details">
                         All Azure service tags remain unchanged since the last update.
+                        ${lastChangeInfo.html}
                     </div>
                 </div>
             `;
@@ -715,9 +847,102 @@ class AzureServiceTagsDashboard {
         changesContainer.innerHTML = changesHtml + paginationHtml;
     }
 
+    async getLastChangeDate() {
+        try {
+            const timestamp = new Date().getTime();
+            const response = await fetch(`./data/changes/manifest.json?t=${timestamp}`);
+
+            if (!response.ok) {
+                return {
+                    html: `
+                        <div style="margin-top: 1rem; padding: 1rem; background: var(--card-background); border-radius: 8px; border: 1px solid var(--border-color);">
+                            <div style="font-weight: 600; margin-bottom: 0.5rem;">💡 Want to see previous updates?</div>
+                            <div style="font-size: 0.9rem; margin-bottom: 0.75rem; color: var(--text-secondary);">
+                                Check the Change History Timeline below to browse historical changes
+                            </div>
+                            <button onclick="dashboard.scrollToTimeline()" class="timeline-link-btn">
+                                📅 View Change History Timeline
+                            </button>
+                        </div>
+                    `
+                };
+            }
+
+            const manifest = await response.json();
+            const files = manifest.files || [];
+
+            // Filter out baseline (oldest date)
+            const oldestDate = manifest.date_range?.oldest;
+            const changeFiles = files.filter(f => f.date !== oldestDate);
+
+            if (changeFiles.length === 0) {
+                return {
+                    html: `
+                        <div style="margin-top: 1rem; padding: 1rem; background: var(--card-background); border-radius: 8px; border: 1px solid var(--border-color);">
+                            <div style="font-weight: 600; margin-bottom: 0.5rem;">📊 Change tracking started</div>
+                            <div style="font-size: 0.9rem; color: var(--text-secondary);">
+                                Monitoring Azure Service Tags for changes. Updates will appear here weekly.
+                            </div>
+                        </div>
+                    `
+                };
+            }
+
+            // Get the most recent change file (should be sorted newest first)
+            const sortedFiles = changeFiles.sort((a, b) => new Date(b.date) - new Date(a.date));
+            const lastChangeFile = sortedFiles[0];
+            const lastChangeDate = new Date(lastChangeFile.date);
+            const formattedDate = lastChangeDate.toLocaleDateString('en-US', {
+                weekday: 'long',
+                year: 'numeric',
+                month: 'long',
+                day: 'numeric'
+            });
+
+            // Calculate days ago
+            const today = new Date();
+            const diffTime = Math.abs(today - lastChangeDate);
+            const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+            const daysAgoText = diffDays === 0 ? 'today' : diffDays === 1 ? 'yesterday' : `${diffDays} days ago`;
+
+            return {
+                html: `
+                    <div style="margin-top: 1rem; padding: 1rem; background: var(--card-background); border-radius: 8px; border: 1px solid var(--border-color);">
+                        <div style="font-weight: 600; margin-bottom: 0.5rem;">📅 Last Update</div>
+                        <div style="font-size: 0.95rem; margin-bottom: 0.5rem;">
+                            <strong>${formattedDate}</strong> (${daysAgoText})
+                        </div>
+                        <div style="font-size: 0.9rem; margin-bottom: 0.75rem; color: var(--text-secondary);">
+                            View all historical changes in the timeline below
+                        </div>
+                        <button onclick="dashboard.scrollToTimeline()" class="timeline-link-btn">
+                            📅 View Change History Timeline
+                        </button>
+                    </div>
+                `
+            };
+
+        } catch (error) {
+            console.error('Error fetching last change date:', error);
+            return {
+                html: `
+                    <div style="margin-top: 1rem; padding: 1rem; background: var(--card-background); border-radius: 8px; border: 1px solid var(--border-color);">
+                        <div style="font-weight: 600; margin-bottom: 0.5rem;">💡 Want to see previous updates?</div>
+                        <div style="font-size: 0.9rem; margin-bottom: 0.75rem; color: var(--text-secondary);">
+                            Check the Change History Timeline below to browse historical changes
+                        </div>
+                        <button onclick="dashboard.scrollToTimeline()" class="timeline-link-btn">
+                            📅 View Change History Timeline
+                        </button>
+                    </div>
+                `
+            };
+        }
+    }
+
     async renderChangeHistoryTimeline() {
         const timelineContainer = document.getElementById('changeHistoryTimeline');
-        
+
         if (!timelineContainer) {
             console.error('changeHistoryTimeline container not found!');
             return;
@@ -735,7 +960,7 @@ class AzureServiceTagsDashboard {
             // Load the manifest file to get all historical changes
             const timestamp = new Date().getTime();
             const manifestResponse = await fetch(`./data/changes/manifest.json?t=${timestamp}`);
-            
+
             if (!manifestResponse.ok) {
                 throw new Error('Could not load change history manifest');
             }
@@ -753,8 +978,22 @@ class AzureServiceTagsDashboard {
                 return;
             }
 
+            // Filter out baseline/initial data files
+            const oldestDate = manifest.date_range?.oldest;
+            const changeFiles = files.filter(fileInfo => fileInfo.date !== oldestDate);
+
+            if (changeFiles.length === 0) {
+                timelineContainer.innerHTML = `
+                    <div class="timeline-empty">
+                        <p>📅 No change history available yet</p>
+                        <p>Only baseline data exists. Change history will appear as updates are detected</p>
+                    </div>
+                `;
+                return;
+            }
+
             // Sort files by date (newest first)
-            const sortedFiles = files.sort((a, b) => new Date(b.date) - new Date(a.date));
+            const sortedFiles = changeFiles.sort((a, b) => new Date(b.date) - new Date(a.date));
 
             // Load summary data for each change file (limit to last 10 for performance)
             const recentFiles = sortedFiles.slice(0, 10);
@@ -781,7 +1020,7 @@ class AzureServiceTagsDashboard {
         try {
             const timestamp = new Date().getTime();
             const response = await fetch(`./data/changes/${fileInfo.filename}?t=${timestamp}`);
-            
+
             if (!response.ok) {
                 throw new Error(`Could not load ${fileInfo.filename}`);
             }
@@ -898,11 +1137,11 @@ class AzureServiceTagsDashboard {
     formatDate(dateString) {
         try {
             const date = new Date(dateString);
-            const options = { 
-                weekday: 'long', 
-                year: 'numeric', 
-                month: 'long', 
-                day: 'numeric' 
+            const options = {
+                weekday: 'long',
+                year: 'numeric',
+                month: 'long',
+                day: 'numeric'
             };
             return date.toLocaleDateString('en-US', options);
         } catch (error) {
@@ -915,7 +1154,7 @@ class AzureServiceTagsDashboard {
             // Load the specific change file
             const timestamp = new Date().getTime();
             const response = await fetch(`./data/changes/${filename}?t=${timestamp}`);
-            
+
             if (!response.ok) {
                 throw new Error('Could not load change details');
             }
@@ -996,10 +1235,6 @@ class AzureServiceTagsDashboard {
                                 <div class="summary-stat-number" style="color: var(--danger-color);">${removedIPs}</div>
                                 <div class="summary-stat-label">IPs Removed</div>
                             </div>
-                            <div class="summary-stat-box">
-                                <div class="summary-stat-number">${totalIPChanges}</div>
-                                <div class="summary-stat-label">Total IP Changes</div>
-                            </div>
                         </div>
                     </div>
 
@@ -1070,9 +1305,6 @@ class AzureServiceTagsDashboard {
         container.innerHTML = `
             <div class="region-services-header">
                 <h4>🔧 All Services - ${date}</h4>
-                <div class="services-stats">
-                    <span class="stat">📊 ${changes.length} services changed</span>
-                </div>
                 <div class="search-section">
                     <input type="text" 
                            id="timelineServiceSearch" 
@@ -1117,10 +1349,6 @@ class AzureServiceTagsDashboard {
         container.innerHTML = `
             <div class="region-services-header">
                 <h4>🌍 Browse by Region - ${date}</h4>
-                <div class="services-stats">
-                    <span class="stat">🌍 ${regions.length} regions affected</span>
-                    <span class="stat">📊 ${ipChanges.length} total changes</span>
-                </div>
             </div>
             <div class="region-list-container">
                 <div class="region-search">
@@ -1128,15 +1356,15 @@ class AzureServiceTagsDashboard {
                 </div>
                 <div class="region-items">
                     ${regions.map(region => {
-                        const displayName = region === 'Global' ? '🌐 Global Services' : getRegionDisplayName(region);
-                        const count = changesByRegion[region].length;
-                        return `
+            const displayName = region === 'Global' ? '🌐 Global Services' : getRegionDisplayName(region);
+            const count = changesByRegion[region].length;
+            return `
                             <div class="region-item" data-region="${region}" data-display-name="${displayName.toLowerCase()}">
                                 <div class="region-name">${displayName}</div>
                                 <div class="region-count">${count} service${count !== 1 ? 's' : ''} changed</div>
                             </div>
                         `;
-                    }).join('')}
+        }).join('')}
                 </div>
             </div>
             <div class="services-for-region-nested" style="display: none;">
@@ -1431,7 +1659,35 @@ class AzureServiceTagsDashboard {
     showAllChanges() {
         const changes = this.changesData.changes || [];
         if (changes.length === 0) {
-            alert('No changes detected this week');
+            // Show modal with link to timeline
+            const modal = document.createElement('div');
+            modal.className = 'changes-modal-overlay';
+            modal.innerHTML = `
+                <div class="changes-modal">
+                    <div class="changes-modal-header">
+                        <h3>📊 No Changes This Week</h3>
+                        <button onclick="this.closest('.changes-modal-overlay').remove()" class="close-modal-btn">&times;</button>
+                    </div>
+                    <div class="changes-modal-body" style="text-align: center; padding: 2rem;">
+                        <div style="font-size: 3rem; margin-bottom: 1rem;">✨</div>
+                        <p style="font-size: 1.1rem; margin-bottom: 1rem;">No service tag changes detected this week</p>
+                        <p style="color: var(--text-secondary); margin-bottom: 1.5rem;">All Azure service tags remain unchanged since the last update.</p>
+                        <div style="padding: 1.5rem; background: var(--card-background); border-radius: 8px; border: 1px solid var(--border-color);">
+                            <div style="font-weight: 600; margin-bottom: 0.5rem;">💡 Want to see previous updates?</div>
+                            <div style="font-size: 0.9rem; margin-bottom: 1rem; color: var(--text-secondary);">
+                                Browse historical changes in the Change History Timeline
+                            </div>
+                            <button onclick="dashboard.scrollToTimeline(); this.closest('.changes-modal-overlay').remove();" class="timeline-link-btn">
+                                📅 View Change History Timeline
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            `;
+            modal.onclick = (e) => {
+                if (e.target === modal) modal.remove();
+            };
+            document.body.appendChild(modal);
             return;
         }
 
@@ -1443,7 +1699,35 @@ class AzureServiceTagsDashboard {
         const ipChanges = changes.filter(change => change.type === 'ip_changes');
 
         if (ipChanges.length === 0) {
-            alert('No region changes detected this week');
+            // Show modal with link to timeline
+            const modal = document.createElement('div');
+            modal.className = 'changes-modal-overlay';
+            modal.innerHTML = `
+                <div class="changes-modal">
+                    <div class="changes-modal-header">
+                        <h3>🌍 No Region Changes This Week</h3>
+                        <button onclick="this.closest('.changes-modal-overlay').remove()" class="close-modal-btn">&times;</button>
+                    </div>
+                    <div class="changes-modal-body" style="text-align: center; padding: 2rem;">
+                        <div style="font-size: 3rem; margin-bottom: 1rem;">✨</div>
+                        <p style="font-size: 1.1rem; margin-bottom: 1rem;">No regional IP changes detected this week</p>
+                        <p style="color: var(--text-secondary); margin-bottom: 1.5rem;">All Azure regional service tags remain unchanged since the last update.</p>
+                        <div style="padding: 1.5rem; background: var(--card-background); border-radius: 8px; border: 1px solid var(--border-color);">
+                            <div style="font-weight: 600; margin-bottom: 0.5rem;">💡 Want to see previous updates?</div>
+                            <div style="font-size: 0.9rem; margin-bottom: 1rem; color: var(--text-secondary);">
+                                Browse historical changes by region in the Change History Timeline
+                            </div>
+                            <button onclick="dashboard.scrollToTimeline(); this.closest('.changes-modal-overlay').remove();" class="timeline-link-btn">
+                                📅 View Change History Timeline
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            `;
+            modal.onclick = (e) => {
+                if (e.target === modal) modal.remove();
+            };
+            document.body.appendChild(modal);
             return;
         }
 
@@ -2230,58 +2514,488 @@ class AzureServiceTagsDashboard {
         });
     }
 
-    performGlobalSearch(query) {
+    async performGlobalSearch(query) {
         const searchResults = document.getElementById('searchResults');
-        const changes = this.changesData.changes || [];
         const queryLower = query.toLowerCase();
 
-        // Search in services
-        const serviceMatches = [];
-        const serviceSet = new Set();
+        // Show loading state
+        searchResults.innerHTML = `
+            <div class="search-loading" style="text-align: center; padding: 2rem;">
+                <div class="spinner"></div>
+                <p>Searching across all historical changes...</p>
+            </div>
+        `;
+        searchResults.classList.remove('hidden');
 
-        changes.forEach(change => {
-            const serviceName = change.service || '';
-            if (serviceName.toLowerCase().includes(queryLower) && !serviceSet.has(serviceName)) {
-                serviceSet.add(serviceName);
-                const serviceChanges = changes.filter(c => c.service === serviceName);
-                const ipAdded = serviceChanges.reduce((sum, c) => sum + (c.added_count || 0), 0);
-                const ipRemoved = serviceChanges.reduce((sum, c) => sum + (c.removed_count || 0), 0);
+        try {
+            // Load all historical changes from manifest
+            const allChanges = await this.loadAllHistoricalChanges();
 
-                serviceMatches.push({
-                    type: 'service',
-                    name: serviceName,
-                    changeCount: serviceChanges.length,
-                    ipAdded,
-                    ipRemoved
+            // Search in services
+            const serviceMatches = new Map();
+
+            allChanges.forEach(({ date, changes }) => {
+                changes.forEach(change => {
+                    const serviceName = change.service || '';
+                    if (serviceName.toLowerCase().includes(queryLower)) {
+                        if (!serviceMatches.has(serviceName)) {
+                            serviceMatches.set(serviceName, {
+                                type: 'service',
+                                name: serviceName,
+                                occurrences: [],
+                                totalChanges: 0,
+                                totalIPAdded: 0,
+                                totalIPRemoved: 0
+                            });
+                        }
+                        const match = serviceMatches.get(serviceName);
+                        match.occurrences.push({
+                            date: date,
+                            ipAdded: change.added_count || 0,
+                            ipRemoved: change.removed_count || 0,
+                            change: change
+                        });
+                        match.totalChanges++;
+                        match.totalIPAdded += (change.added_count || 0);
+                        match.totalIPRemoved += (change.removed_count || 0);
+                    }
                 });
-            }
+            });
+
+            // Search in regions
+            const regionMatches = new Map();
+
+            allChanges.forEach(({ date, changes }) => {
+                changes.forEach(change => {
+                    const region = change.region || '';
+                    const displayName = region ? getRegionDisplayName(region) : '🌐 Global';
+
+                    if (region.toLowerCase().includes(queryLower) ||
+                        displayName.toLowerCase().includes(queryLower)) {
+                        if (!regionMatches.has(region)) {
+                            regionMatches.set(region, {
+                                type: 'region',
+                                name: region,
+                                displayName: displayName,
+                                occurrences: [],
+                                totalChanges: 0
+                            });
+                        }
+                        const match = regionMatches.get(region);
+                        match.occurrences.push({
+                            date: date,
+                            change: change
+                        });
+                        match.totalChanges++;
+                    }
+                });
+            });
+
+            // Convert Maps to Arrays
+            const services = Array.from(serviceMatches.values());
+            const regions = Array.from(regionMatches.values());
+
+            // Display results
+            this.displayHistoricalSearchResults(services, regions, query);
+
+        } catch (error) {
+            console.error('Error searching historical data:', error);
+            searchResults.innerHTML = `
+                <div class="search-no-results">
+                    <div class="search-no-results-icon">⚠️</div>
+                    <div>Error searching historical data</div>
+                    <div style="margin-top: 0.5rem; font-size: 0.9rem; color: var(--text-secondary);">
+                        ${error.message}
+                    </div>
+                </div>
+            `;
+        }
+    }
+
+    async loadAllHistoricalChanges() {
+        // Load manifest to get all change files
+        const timestamp = new Date().getTime();
+        const manifestResponse = await fetch(`./data/changes/manifest.json?t=${timestamp}`);
+
+        if (!manifestResponse.ok) {
+            throw new Error('Could not load change history manifest');
+        }
+
+        const manifest = await manifestResponse.json();
+        const files = manifest.files || [];
+
+        if (files.length === 0) {
+            return [];
+        }
+
+        // Filter out baseline/initial data files
+        // Exclude files named with pattern like "2025-10-08-changes.json" (first snapshot)
+        // Keep only files that represent actual changes after the baseline
+        const changeFiles = files.filter(fileInfo => {
+            // Skip the oldest file (baseline) if it's the first one
+            const oldestDate = manifest.date_range?.oldest;
+            return fileInfo.date !== oldestDate;
         });
 
-        // Search in regions
-        const regionMatches = [];
-        const regionSet = new Set();
+        if (changeFiles.length === 0) {
+            return [];
+        }
 
-        changes.forEach(change => {
-            const region = change.region || '';
-            const displayName = region ? getRegionDisplayName(region) : '';
+        // Load all change files (limit to last 20 for performance)
+        const recentFiles = changeFiles.slice(0, 20);
+        const allChanges = [];
 
-            if ((region.toLowerCase().includes(queryLower) ||
-                displayName.toLowerCase().includes(queryLower)) &&
-                !regionSet.has(region)) {
-                regionSet.add(region);
-                const regionChanges = changes.filter(c => c.region === region);
-
-                regionMatches.push({
-                    type: 'region',
-                    name: region,
-                    displayName: displayName,
-                    changeCount: regionChanges.length
-                });
+        for (const fileInfo of recentFiles) {
+            try {
+                const response = await fetch(`./data/changes/${fileInfo.filename}?t=${timestamp}`);
+                if (response.ok) {
+                    const data = await response.json();
+                    allChanges.push({
+                        date: fileInfo.date,
+                        filename: fileInfo.filename,
+                        changes: data.changes || []
+                    });
+                }
+            } catch (error) {
+                console.error(`Error loading ${fileInfo.filename}:`, error);
             }
-        });
+        }
 
-        // Display results
-        this.displaySearchResults(serviceMatches, regionMatches, query);
+        return allChanges;
+    }
+
+    displayHistoricalSearchResults(services, regions, query) {
+        const searchResults = document.getElementById('searchResults');
+
+        if (services.length === 0 && regions.length === 0) {
+            searchResults.innerHTML = `
+                <div class="search-no-results">
+                    <div class="search-no-results-icon">🔍</div>
+                    <div>No results found for "<strong>${query}</strong>" in historical changes</div>
+                    <div style="margin-top: 0.5rem; font-size: 0.9rem; color: var(--text-secondary);">
+                        Try searching for service names like "Storage", "AzureAD" or regions like "East US"
+                    </div>
+                </div>
+            `;
+            searchResults.classList.remove('hidden');
+            return;
+        }
+
+        let html = '<div class="search-results-header">Found in historical changes:</div>';
+
+        // Store data for click handlers
+        this.historicalSearchData = { services, regions };
+
+        // Display service results
+        if (services.length > 0) {
+            html += '<div class="search-category-header">🔧 Services</div>';
+            services.slice(0, 10).forEach((service, index) => {
+                const latestDate = service.occurrences[0].date;
+                const occurrenceCount = service.occurrences.length;
+
+                html += `
+                    <div class="search-result-item historical" data-type="service" data-index="${index}">
+                        <div class="search-result-info">
+                            <div class="search-result-name">${service.name}</div>
+                            <div class="search-result-meta">
+                                📊 ${service.totalChanges} change${service.totalChanges !== 1 ? 's' : ''} across ${occurrenceCount} date${occurrenceCount !== 1 ? 's' : ''}
+                                <br>
+                                <span style="color: var(--success-color);">+${service.totalIPAdded.toLocaleString()} IPs</span> • 
+                                <span style="color: var(--danger-color);">-${service.totalIPRemoved.toLocaleString()} IPs</span> • 
+                                Latest: ${this.formatDateShort(latestDate)}
+                            </div>
+                        </div>
+                        <span class="search-result-badge service">Service</span>
+                    </div>
+                `;
+            });
+        }
+
+        // Display region results
+        if (regions.length > 0) {
+            html += '<div class="search-category-header">🌍 Regions</div>';
+            regions.slice(0, 10).forEach((region, index) => {
+                const latestDate = region.occurrences[0].date;
+                const occurrenceCount = region.occurrences.length;
+
+                html += `
+                    <div class="search-result-item historical" data-type="region" data-index="${index}">
+                        <div class="search-result-info">
+                            <div class="search-result-name">${region.displayName}</div>
+                            <div class="search-result-meta">
+                                📊 ${region.totalChanges} change${region.totalChanges !== 1 ? 's' : ''} across ${occurrenceCount} date${occurrenceCount !== 1 ? 's' : ''}
+                                • Latest: ${this.formatDateShort(latestDate)}
+                            </div>
+                        </div>
+                        <span class="search-result-badge region">Region</span>
+                    </div>
+                `;
+            });
+        }
+
+        if (services.length > 10 || regions.length > 10) {
+            html += '<div class="search-results-footer">Showing top 10 results in each category</div>';
+        }
+
+        searchResults.innerHTML = html;
+        searchResults.classList.remove('hidden');
+
+        // Add event listeners for historical results
+        searchResults.querySelectorAll('.search-result-item.historical').forEach(item => {
+            item.addEventListener('click', (e) => {
+                const type = item.getAttribute('data-type');
+                const index = parseInt(item.getAttribute('data-index'));
+
+                console.log('Historical result clicked:', { type, index, data: this.historicalSearchData });
+
+                if (type === 'service') {
+                    const service = this.historicalSearchData.services[index];
+                    console.log('Showing service details:', service);
+                    this.showHistoricalServiceDetails(service.name, service.occurrences);
+                } else if (type === 'region') {
+                    const region = this.historicalSearchData.regions[index];
+                    console.log('Showing region details:', region);
+                    this.showHistoricalRegionDetails(region.name, region.occurrences);
+                }
+            });
+        });
+    }
+
+    formatDateShort(dateString) {
+        try {
+            const date = new Date(dateString);
+            const options = { month: 'short', day: 'numeric', year: 'numeric' };
+            return date.toLocaleDateString('en-US', options);
+        } catch (error) {
+            return dateString;
+        }
+    }
+
+    async showServiceHistory(serviceName) {
+        // Load all historical changes for this service
+        try {
+            const modal = document.createElement('div');
+            modal.className = 'changes-modal-overlay';
+
+            modal.innerHTML = `
+                <div class="changes-modal">
+                    <div class="changes-modal-header">
+                        <h3>🔧 ${serviceName} - Historical Changes</h3>
+                        <button onclick="this.closest('.changes-modal-overlay').remove()" class="close-modal-btn">&times;</button>
+                    </div>
+                    <div class="changes-modal-body">
+                        <div class="timeline-loading">
+                            <div class="spinner"></div>
+                            <p>Loading historical data...</p>
+                        </div>
+                    </div>
+                </div>
+            `;
+
+            modal.onclick = (e) => {
+                if (e.target === modal) modal.remove();
+            };
+
+            document.body.appendChild(modal);
+
+            // Load all historical changes for this service
+            const manifestResponse = await fetch('data/changes/manifest.json');
+            if (!manifestResponse.ok) {
+                throw new Error('Could not load manifest');
+            }
+
+            const manifest = await manifestResponse.json();
+            const oldestDate = manifest.date_range?.oldest;
+            const changeFiles = manifest.files.filter(f => f.date !== oldestDate);
+
+            const events = [];
+            let totalIPAdded = 0;
+            let totalIPRemoved = 0;
+
+            // Load each file and find changes for this service
+            for (const fileInfo of changeFiles) {
+                try {
+                    const response = await fetch(`data/changes/${fileInfo.filename}`);
+                    if (response.ok) {
+                        const data = await response.json();
+                        const serviceChanges = (data.changes || []).filter(c => c.service === serviceName);
+
+                        serviceChanges.forEach(change => {
+                            const ipAdded = change.added_count || 0;
+                            const ipRemoved = change.removed_count || 0;
+
+                            events.push({
+                                date: fileInfo.date,
+                                change: change,
+                                ipAdded: ipAdded,
+                                ipRemoved: ipRemoved
+                            });
+
+                            totalIPAdded += ipAdded;
+                            totalIPRemoved += ipRemoved;
+                        });
+                    }
+                } catch (err) {
+                    console.log(`Could not load ${fileInfo.filename}:`, err.message);
+                }
+            }
+
+            // Sort by date (newest first)
+            events.sort((a, b) => new Date(b.date) - new Date(a.date));
+
+            // Render the modal content
+            const eventsHtml = events.map(event => {
+                return `
+                    <div class="historical-event-item">
+                        <div class="historical-event-header">
+                            <span class="historical-event-date">📅 ${this.formatDate(event.date)}</span>
+                            <div class="historical-event-stats">
+                                ${event.ipAdded > 0 ? `<span style="color: var(--success-color);">+${event.ipAdded} IPs</span>` : ''}
+                                ${event.ipRemoved > 0 ? `<span style="color: var(--danger-color);">-${event.ipRemoved} IPs</span>` : ''}
+                            </div>
+                        </div>
+                        ${this.renderChangeItemDetailed(event.change)}
+                    </div>
+                `;
+            }).join('');
+
+            const modalBody = modal.querySelector('.changes-modal-body');
+            modalBody.innerHTML = `
+                <div class="historical-summary">
+                    <div class="summary-stat-box">
+                        <div class="summary-stat-number">${events.length}</div>
+                        <div class="summary-stat-label">Change Events</div>
+                    </div>
+                    <div class="summary-stat-box">
+                        <div class="summary-stat-number" style="color: var(--success-color);">+${totalIPAdded.toLocaleString()}</div>
+                        <div class="summary-stat-label">Total IPs Added</div>
+                    </div>
+                    <div class="summary-stat-box">
+                        <div class="summary-stat-number" style="color: var(--danger-color);">-${totalIPRemoved.toLocaleString()}</div>
+                        <div class="summary-stat-label">Total IPs Removed</div>
+                    </div>
+                </div>
+                <div class="historical-events-list">
+                    ${eventsHtml}
+                </div>
+            `;
+
+        } catch (error) {
+            console.error('Error loading service history:', error);
+            alert('Unable to load service history. Please try again.');
+        }
+    }
+
+    showHistoricalServiceDetails(serviceName, occurrences) {
+        // Parse occurrences if it's a string
+        const events = typeof occurrences === 'string' ? JSON.parse(occurrences) : occurrences;
+
+        const modal = document.createElement('div');
+        modal.className = 'changes-modal-overlay';
+
+        // Calculate totals
+        const totalIPAdded = events.reduce((sum, e) => sum + e.ipAdded, 0);
+        const totalIPRemoved = events.reduce((sum, e) => sum + e.ipRemoved, 0);
+
+        // Group by date and render
+        const eventsHtml = events.map(event => {
+            const change = event.change;
+            return `
+                <div class="historical-event-item">
+                    <div class="historical-event-header">
+                        <span class="historical-event-date">📅 ${this.formatDate(event.date)}</span>
+                        <div class="historical-event-stats">
+                            ${event.ipAdded > 0 ? `<span style="color: var(--success-color);">+${event.ipAdded} IPs</span>` : ''}
+                            ${event.ipRemoved > 0 ? `<span style="color: var(--danger-color);">-${event.ipRemoved} IPs</span>` : ''}
+                        </div>
+                    </div>
+                    ${this.renderChangeItemDetailed(change)}
+                </div>
+            `;
+        }).join('');
+
+        modal.innerHTML = `
+            <div class="changes-modal">
+                <div class="changes-modal-header">
+                    <h3>🔧 ${serviceName} - Historical Changes</h3>
+                    <button onclick="this.closest('.changes-modal-overlay').remove()" class="close-modal-btn">&times;</button>
+                </div>
+                <div class="changes-modal-body">
+                    <div class="historical-summary">
+                        <div class="summary-stat-box">
+                            <div class="summary-stat-number">${events.length}</div>
+                            <div class="summary-stat-label">Change Events</div>
+                        </div>
+                        <div class="summary-stat-box">
+                            <div class="summary-stat-number" style="color: var(--success-color);">+${totalIPAdded.toLocaleString()}</div>
+                            <div class="summary-stat-label">Total IPs Added</div>
+                        </div>
+                        <div class="summary-stat-box">
+                            <div class="summary-stat-number" style="color: var(--danger-color);">-${totalIPRemoved.toLocaleString()}</div>
+                            <div class="summary-stat-label">Total IPs Removed</div>
+                        </div>
+                    </div>
+                    <div class="historical-events-list">
+                        ${eventsHtml}
+                    </div>
+                </div>
+            </div>
+        `;
+
+        modal.onclick = (e) => {
+            if (e.target === modal) modal.remove();
+        };
+
+        document.body.appendChild(modal);
+    }
+
+    showHistoricalRegionDetails(regionName, occurrences) {
+        // Parse occurrences if it's a string
+        const events = typeof occurrences === 'string' ? JSON.parse(occurrences) : occurrences;
+
+        const modal = document.createElement('div');
+        modal.className = 'changes-modal-overlay';
+
+        const displayName = regionName ? getRegionDisplayName(regionName) : '🌐 Global';
+
+        // Group by date and render
+        const eventsHtml = events.map(event => {
+            const change = event.change;
+            return `
+                <div class="historical-event-item">
+                    <div class="historical-event-header">
+                        <span class="historical-event-date">📅 ${this.formatDate(event.date)}</span>
+                    </div>
+                    ${this.renderChangeItemDetailed(change)}
+                </div>
+            `;
+        }).join('');
+
+        modal.innerHTML = `
+            <div class="changes-modal">
+                <div class="changes-modal-header">
+                    <h3>🌍 ${displayName} - Historical Changes</h3>
+                    <button onclick="this.closest('.changes-modal-overlay').remove()" class="close-modal-btn">&times;</button>
+                </div>
+                <div class="changes-modal-body">
+                    <div class="historical-summary">
+                        <div class="summary-stat-box">
+                            <div class="summary-stat-number">${events.length}</div>
+                            <div class="summary-stat-label">Change Events</div>
+                        </div>
+                    </div>
+                    <div class="historical-events-list">
+                        ${eventsHtml}
+                    </div>
+                </div>
+            </div>
+        `;
+
+        modal.onclick = (e) => {
+            if (e.target === modal) modal.remove();
+        };
+
+        document.body.appendChild(modal);
     }
 
     displaySearchResults(services, regions, query) {
@@ -2291,8 +3005,19 @@ class AzureServiceTagsDashboard {
             searchResults.innerHTML = `
                 <div class="search-no-results">
                     <div class="search-no-results-icon">🔍</div>
-                    <div>No results found for "<strong>${query}</strong>"</div>
-                    <div style="margin-top: 0.5rem; font-size: 0.9rem;">Try searching for service names like "Storage", "AzureAD" or regions like "East US"</div>
+                    <div>No results found for "<strong>${query}</strong>" in this week's changes</div>
+                    <div style="margin-top: 0.5rem; font-size: 0.9rem; color: var(--text-secondary);">
+                        Try searching for service names like "Storage", "AzureAD" or regions like "East US"
+                    </div>
+                    <div style="margin-top: 1rem; padding: 1rem; background: var(--card-background); border-radius: 8px; border: 1px solid var(--border-color);">
+                        <div style="font-weight: 600; margin-bottom: 0.5rem;">💡 Looking for previous updates?</div>
+                        <div style="font-size: 0.9rem; margin-bottom: 0.75rem; color: var(--text-secondary);">
+                            Check the Change History Timeline below to browse historical changes
+                        </div>
+                        <button onclick="dashboard.scrollToTimeline()" class="timeline-link-btn">
+                            📅 View Change History Timeline
+                        </button>
+                    </div>
                 </div>
             `;
             searchResults.classList.remove('hidden');
@@ -2383,6 +3108,22 @@ class AzureServiceTagsDashboard {
             searchInput.focus();
             this.performGlobalSearch(query);
             document.getElementById('searchClear').classList.add('visible');
+        }
+    }
+
+    scrollToTimeline() {
+        const timelineSection = document.querySelector('.timeline-section');
+        if (timelineSection) {
+            timelineSection.scrollIntoView({ behavior: 'smooth', block: 'start' });
+            // Add a subtle highlight effect
+            const timeline = document.getElementById('changeHistoryTimeline');
+            if (timeline) {
+                timeline.style.transition = 'box-shadow 0.3s ease';
+                timeline.style.boxShadow = '0 0 20px rgba(76, 175, 80, 0.3)';
+                setTimeout(() => {
+                    timeline.style.boxShadow = '';
+                }, 2000);
+            }
         }
     }
 }
