@@ -253,6 +253,51 @@ def save_data_files(data: Dict, changes: List[Dict], summary: Dict):
     with open('docs/data/summary.json', 'w') as f:
         json.dump(summary, f, indent=2)
     logging.info("Saved summary.json")
+    
+    # Generate manifest of all change files for historical analysis
+    generate_changes_manifest()
+
+def generate_changes_manifest():
+    """Generate a manifest file listing all available change files for the dashboard."""
+    try:
+        changes_dir = Path('docs/data/changes')
+        
+        # Find all change files (exclude latest-changes.json and manifest.json)
+        change_files = []
+        for file_path in sorted(changes_dir.glob('*-changes.json')):
+            filename = file_path.name
+            if filename not in ['latest-changes.json', 'manifest.json']:
+                # Extract date from filename (YYYY-MM-DD-changes.json)
+                date_match = re.match(r'(\d{4}-\d{2}-\d{2})-changes\.json', filename)
+                if date_match:
+                    file_size = file_path.stat().st_size
+                    change_files.append({
+                        'date': date_match.group(1),
+                        'filename': filename,
+                        'size': file_size
+                    })
+        
+        # Sort by date (newest first)
+        change_files.sort(key=lambda x: x['date'], reverse=True)
+        
+        manifest = {
+            'generated': datetime.now(timezone.utc).isoformat(),
+            'total_files': len(change_files),
+            'date_range': {
+                'oldest': change_files[-1]['date'] if change_files else None,
+                'newest': change_files[0]['date'] if change_files else None
+            },
+            'files': change_files
+        }
+        
+        manifest_file = changes_dir / 'manifest.json'
+        with open(manifest_file, 'w') as f:
+            json.dump(manifest, f, indent=2)
+        
+        logging.info(f"Generated manifest with {len(change_files)} historical files")
+        
+    except Exception as e:
+        logging.warning(f"Could not generate manifest: {e}")
 
 def cleanup_old_files(keep_weeks: int = 12):
     """Clean up old history files to prevent repository bloat."""

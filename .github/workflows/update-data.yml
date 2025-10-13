@@ -151,24 +151,24 @@ jobs:
         run: |
           set -euo pipefail
           PR_NUMBER="${{ steps.open_pr.outputs.pr_number }}"
-          
+
           echo "🔄 Attempting to merge PR #$PR_NUMBER"
-          
+
           # Wait a moment for PR to be fully created
           sleep 3
-          
+
           # Try to merge directly (will work if admin bypass is configured)
           MERGE_DATA=$(jq -n \
             --arg method "squash" \
             --arg title "📈 Update Azure Service Tags data" \
             '{merge_method: $method, commit_title: $title}')
-          
+
           HTTP_CODE=$(curl -sS -o /tmp/merge_resp.json -w "%{http_code}" \
             -H "Authorization: Bearer $GH_TOKEN" \
             -H "Accept: application/vnd.github+json" \
             -X PUT "https://api.github.com/repos/${REPO}/pulls/${PR_NUMBER}/merge" \
             -d "$MERGE_DATA")
-          
+
           if [ "$HTTP_CODE" = "200" ]; then
             echo "✅ Pull request #$PR_NUMBER merged successfully!"
             echo "🚀 GitHub Pages will deploy automatically in 1-2 minutes"

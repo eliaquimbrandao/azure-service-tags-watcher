@@ -160,6 +160,7 @@ class AzureServiceTagsDashboard {
         this.renderStats();
         this.renderLastUpdated();
         this.renderCharts();
+        this.renderChangeHistoryTimeline();
         this.renderRecentChanges();
         this.initializeGlobalSearch();
 
@@ -712,6 +713,504 @@ class AzureServiceTagsDashboard {
         ` : '';
 
         changesContainer.innerHTML = changesHtml + paginationHtml;
+    }
+
+    async renderChangeHistoryTimeline() {
+        const timelineContainer = document.getElementById('changeHistoryTimeline');
+        
+        if (!timelineContainer) {
+            console.error('changeHistoryTimeline container not found!');
+            return;
+        }
+
+        // Show loading state
+        timelineContainer.innerHTML = `
+            <div class="timeline-loading">
+                <div class="spinner"></div>
+                <p>Loading change history...</p>
+            </div>
+        `;
+
+        try {
+            // Load the manifest file to get all historical changes
+            const timestamp = new Date().getTime();
+            const manifestResponse = await fetch(`./data/changes/manifest.json?t=${timestamp}`);
+            
+            if (!manifestResponse.ok) {
+                throw new Error('Could not load change history manifest');
+            }
+
+            const manifest = await manifestResponse.json();
+            const files = manifest.files || [];
+
+            if (files.length === 0) {
+                timelineContainer.innerHTML = `
+                    <div class="timeline-empty">
+                        <p>📅 No change history available yet</p>
+                        <p>Change history will appear here as updates are detected</p>
+                    </div>
+                `;
+                return;
+            }
+
+            // Sort files by date (newest first)
+            const sortedFiles = files.sort((a, b) => new Date(b.date) - new Date(a.date));
+
+            // Load summary data for each change file (limit to last 10 for performance)
+            const recentFiles = sortedFiles.slice(0, 10);
+            const timelineItems = await Promise.all(
+                recentFiles.map(file => this.loadTimelineItem(file))
+            );
+
+            // Render timeline
+            const timelineHtml = timelineItems.map(item => this.renderTimelineItem(item)).join('');
+            timelineContainer.innerHTML = timelineHtml;
+
+        } catch (error) {
+            console.error('Error loading change history:', error);
+            timelineContainer.innerHTML = `
+                <div class="timeline-error">
+                    <p>⚠️ Unable to load change history</p>
+                    <p>${error.message}</p>
+                </div>
+            `;
+        }
+    }
+
+    async loadTimelineItem(fileInfo) {
+        try {
+            const timestamp = new Date().getTime();
+            const response = await fetch(`./data/changes/${fileInfo.filename}?t=${timestamp}`);
+            
+            if (!response.ok) {
+                throw new Error(`Could not load ${fileInfo.filename}`);
+            }
+
+            const data = await response.json();
+            const changes = data.changes || [];
+
+            // Calculate statistics
+            const serviceCount = new Set(changes.map(c => c.service)).size;
+            const regionCount = new Set(changes.map(c => c.region || 'global')).size;
+            const totalIPChanges = changes.reduce((sum, c) => {
+                return sum + (c.added_count || 0) + (c.removed_count || 0);
+            }, 0);
+            const addedIPs = changes.reduce((sum, c) => sum + (c.added_count || 0), 0);
+            const removedIPs = changes.reduce((sum, c) => sum + (c.removed_count || 0), 0);
+
+            return {
+                date: fileInfo.date,
+                filename: fileInfo.filename,
+                changeCount: changes.length,
+                serviceCount,
+                regionCount,
+                totalIPChanges,
+                addedIPs,
+                removedIPs,
+                hasChanges: changes.length > 0,
+                changes: changes
+            };
+        } catch (error) {
+            console.error(`Error loading timeline item ${fileInfo.filename}:`, error);
+            return {
+                date: fileInfo.date,
+                filename: fileInfo.filename,
+                error: true,
+                errorMessage: error.message
+            };
+        }
+    }
+
+    renderTimelineItem(item) {
+        if (item.error) {
+            return `
+                <div class="timeline-item no-changes">
+                    <div class="timeline-header">
+                        <div class="timeline-date">
+                            <span class="date-icon">📅</span>
+                            ${this.formatDate(item.date)}
+                        </div>
+                        <span class="timeline-badge no-changes-badge">Error</span>
+                    </div>
+                    <div class="timeline-details">
+                        <p style="color: var(--danger-color);">⚠️ ${item.errorMessage}</p>
+                    </div>
+                </div>
+            `;
+        }
+
+        if (!item.hasChanges) {
+            return `
+                <div class="timeline-item no-changes">
+                    <div class="timeline-header">
+                        <div class="timeline-date">
+                            <span class="date-icon">📅</span>
+                            ${this.formatDate(item.date)}
+                        </div>
+                        <span class="timeline-badge no-changes-badge">No Changes</span>
+                    </div>
+                    <div class="timeline-details">
+                        <div class="timeline-detail-item">
+                            <span>✨</span>
+                            <span>No service tag updates detected</span>
+                        </div>
+                    </div>
+                </div>
+            `;
+        }
+
+        return `
+            <div class="timeline-item" onclick="dashboard.showTimelineDetails('${item.filename}', '${item.date}')">
+                <div class="timeline-header">
+                    <div class="timeline-date">
+                        <span class="date-icon">📅</span>
+                        ${this.formatDate(item.date)}
+                    </div>
+                    <span class="timeline-badge">${item.changeCount} Changes</span>
+                </div>
+                
+                <div class="timeline-stats">
+                    <div class="timeline-stat-box">
+                        <span class="timeline-stat-number">${item.serviceCount}</span>
+                        <span class="timeline-stat-label">Services</span>
+                    </div>
+                    <div class="timeline-stat-box">
+                        <span class="timeline-stat-number">${item.regionCount}</span>
+                        <span class="timeline-stat-label">Regions</span>
+                    </div>
+                    <div class="timeline-stat-box">
+                        <span class="timeline-stat-number" style="color: var(--success-color);">${item.addedIPs}</span>
+                        <span class="timeline-stat-label">Added IPs</span>
+                    </div>
+                    <div class="timeline-stat-box">
+                        <span class="timeline-stat-number" style="color: var(--danger-color);">${item.removedIPs}</span>
+                        <span class="timeline-stat-label">Removed IPs</span>
+                    </div>
+                </div>
+
+                <div class="timeline-action-hint">
+                    👆 Click to view detailed changes
+                </div>
+            </div>
+        `;
+    }
+
+    formatDate(dateString) {
+        try {
+            const date = new Date(dateString);
+            const options = { 
+                weekday: 'long', 
+                year: 'numeric', 
+                month: 'long', 
+                day: 'numeric' 
+            };
+            return date.toLocaleDateString('en-US', options);
+        } catch (error) {
+            return dateString;
+        }
+    }
+
+    async showTimelineDetails(filename, date) {
+        try {
+            // Load the specific change file
+            const timestamp = new Date().getTime();
+            const response = await fetch(`./data/changes/${filename}?t=${timestamp}`);
+            
+            if (!response.ok) {
+                throw new Error('Could not load change details');
+            }
+
+            const data = await response.json();
+            const changes = data.changes || [];
+
+            if (changes.length === 0) {
+                alert('No changes found for this date');
+                return;
+            }
+
+            // Show navigation modal with Services/Regions options
+            this.showTimelineNavigationModal(date, changes);
+
+        } catch (error) {
+            console.error('Error loading timeline details:', error);
+            alert('Unable to load change details. Please try again.');
+        }
+    }
+
+    showTimelineNavigationModal(date, changes) {
+        const modal = document.createElement('div');
+        modal.className = 'changes-modal-overlay';
+
+        // Calculate statistics
+        const serviceCount = new Set(changes.map(c => c.service)).size;
+        const ipChanges = changes.filter(c => c.type === 'ip_changes');
+        const regionCount = new Set(ipChanges.map(c => c.region || 'global')).size;
+        const totalIPChanges = changes.reduce((sum, c) => {
+            return sum + (c.added_count || 0) + (c.removed_count || 0);
+        }, 0);
+        const addedIPs = changes.reduce((sum, c) => sum + (c.added_count || 0), 0);
+        const removedIPs = changes.reduce((sum, c) => sum + (c.removed_count || 0), 0);
+
+        const formattedDate = this.formatDate(date);
+
+        modal.innerHTML = `
+            <div class="changes-modal">
+                <div class="changes-modal-header">
+                    <h3>📅 ${formattedDate}</h3>
+                    <button onclick="this.closest('.changes-modal-overlay').remove()" class="close-modal-btn">&times;</button>
+                </div>
+                <div class="changes-modal-content">
+                    <div class="timeline-navigation">
+                        <h4>How would you like to browse these changes?</h4>
+                        
+                        <div class="timeline-nav-options">
+                            <div class="timeline-nav-card" data-view="services">
+                                <div class="nav-card-icon">🔧</div>
+                                <div class="nav-card-content">
+                                    <h5>Browse by Services</h5>
+                                    <p>View changes organized by Azure service</p>
+                                </div>
+                                <div class="nav-card-arrow">→</div>
+                            </div>
+
+                            <div class="timeline-nav-card" data-view="regions">
+                                <div class="nav-card-icon">🌍</div>
+                                <div class="nav-card-content">
+                                    <h5>Browse by Regions</h5>
+                                    <p>View changes organized by geographic region</p>
+                                </div>
+                                <div class="nav-card-arrow">→</div>
+                            </div>
+                        </div>
+
+                        <div class="timeline-summary-stats">
+                            <div class="summary-stat-box">
+                                <div class="summary-stat-number">${changes.length}</div>
+                                <div class="summary-stat-label">Total Changes</div>
+                            </div>
+                            <div class="summary-stat-box">
+                                <div class="summary-stat-number" style="color: var(--success-color);">${addedIPs}</div>
+                                <div class="summary-stat-label">IPs Added</div>
+                            </div>
+                            <div class="summary-stat-box">
+                                <div class="summary-stat-number" style="color: var(--danger-color);">${removedIPs}</div>
+                                <div class="summary-stat-label">IPs Removed</div>
+                            </div>
+                            <div class="summary-stat-box">
+                                <div class="summary-stat-number">${totalIPChanges}</div>
+                                <div class="summary-stat-label">Total IP Changes</div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="timeline-detail-view" style="display: none;">
+                        <div class="back-to-navigation">
+                            <button class="back-btn">← Back to Navigation</button>
+                        </div>
+                        <div id="timelineDetailContainer"></div>
+                    </div>
+                </div>
+            </div>
+        `;
+
+        // Close modal when clicking overlay
+        modal.onclick = (e) => {
+            if (e.target === modal) {
+                modal.remove();
+            }
+        };
+
+        document.body.appendChild(modal);
+        this.currentTimelineModal = modal;
+
+        // Store data for navigation
+        modal.timelineData = {
+            date: date,
+            changes: changes,
+            ipChanges: ipChanges
+        };
+
+        // Add event listeners for navigation cards
+        const navCards = modal.querySelectorAll('.timeline-nav-card');
+        navCards.forEach(card => {
+            card.addEventListener('click', () => {
+                const view = card.dataset.view;
+                if (view === 'services') {
+                    this.showTimelineServiceView(modal, formattedDate, changes);
+                } else if (view === 'regions') {
+                    this.showTimelineRegionView(modal, formattedDate, ipChanges);
+                }
+            });
+        });
+
+        // Add back button listener
+        const backBtn = modal.querySelector('.back-btn');
+        if (backBtn) {
+            backBtn.addEventListener('click', () => {
+                modal.querySelector('.timeline-navigation').style.display = 'block';
+                modal.querySelector('.timeline-detail-view').style.display = 'none';
+            });
+        }
+    }
+
+    showTimelineServiceView(modal, date, changes) {
+        // Hide navigation and show services
+        modal.querySelector('.timeline-navigation').style.display = 'none';
+        modal.querySelector('.timeline-detail-view').style.display = 'block';
+
+        // Sort changes alphabetically by service
+        const sortedChanges = changes.sort((a, b) => a.service.localeCompare(b.service));
+
+        // Render all services with full details
+        const servicesHtml = sortedChanges.map(change => {
+            return this.renderChangeItemDetailed(change);
+        }).join('');
+
+        const container = modal.querySelector('#timelineDetailContainer');
+        container.innerHTML = `
+            <div class="region-services-header">
+                <h4>🔧 All Services - ${date}</h4>
+                <div class="services-stats">
+                    <span class="stat">📊 ${changes.length} services changed</span>
+                </div>
+                <div class="search-section">
+                    <input type="text" 
+                           id="timelineServiceSearch" 
+                           placeholder="🔍 Search by service name or IP..." 
+                           class="changes-search-input">
+                </div>
+            </div>
+            <div class="changes-list" id="timelineServicesList">
+                ${servicesHtml}
+            </div>
+        `;
+
+        // Add search functionality
+        const searchInput = container.querySelector('#timelineServiceSearch');
+        if (searchInput) {
+            searchInput.addEventListener('input', (e) => {
+                const searchTerm = e.target.value.toLowerCase();
+                const changeItems = container.querySelectorAll('.change-item');
+
+                changeItems.forEach(item => {
+                    const text = item.textContent.toLowerCase();
+                    if (text.includes(searchTerm)) {
+                        item.style.display = 'block';
+                    } else {
+                        item.style.display = 'none';
+                    }
+                });
+            });
+        }
+    }
+
+    showTimelineRegionView(modal, date, ipChanges) {
+        // Hide navigation and show regions
+        modal.querySelector('.timeline-navigation').style.display = 'none';
+        modal.querySelector('.timeline-detail-view').style.display = 'block';
+
+        // Group changes by region
+        const changesByRegion = this.groupChangesByRegion(ipChanges);
+        const regions = Object.keys(changesByRegion).sort();
+
+        const container = modal.querySelector('#timelineDetailContainer');
+        container.innerHTML = `
+            <div class="region-services-header">
+                <h4>🌍 Browse by Region - ${date}</h4>
+                <div class="services-stats">
+                    <span class="stat">🌍 ${regions.length} regions affected</span>
+                    <span class="stat">📊 ${ipChanges.length} total changes</span>
+                </div>
+            </div>
+            <div class="region-list-container">
+                <div class="region-search">
+                    <input type="text" id="timelineRegionSearch" placeholder="🔍 Search regions..." />
+                </div>
+                <div class="region-items">
+                    ${regions.map(region => {
+                        const displayName = region === 'Global' ? '🌐 Global Services' : getRegionDisplayName(region);
+                        const count = changesByRegion[region].length;
+                        return `
+                            <div class="region-item" data-region="${region}" data-display-name="${displayName.toLowerCase()}">
+                                <div class="region-name">${displayName}</div>
+                                <div class="region-count">${count} service${count !== 1 ? 's' : ''} changed</div>
+                            </div>
+                        `;
+                    }).join('')}
+                </div>
+            </div>
+            <div class="services-for-region-nested" style="display: none;">
+                <div class="back-to-region-list">
+                    <button class="back-btn-nested">← Back to Regions</button>
+                </div>
+                <div id="timelineRegionServicesContainer"></div>
+            </div>
+        `;
+
+        // Add event listeners for region items
+        const regionItems = container.querySelectorAll('.region-item');
+        regionItems.forEach(item => {
+            item.addEventListener('click', () => {
+                const region = item.dataset.region;
+                const regionChanges = changesByRegion[region];
+                this.showTimelineServicesForRegion(region, regionChanges, container, date);
+            });
+        });
+
+        // Add back button for nested navigation
+        const backBtnNested = container.querySelector('.back-btn-nested');
+        if (backBtnNested) {
+            backBtnNested.addEventListener('click', () => {
+                container.querySelector('.region-list-container').style.display = 'block';
+                container.querySelector('.services-for-region-nested').style.display = 'none';
+            });
+        }
+
+        // Add search functionality
+        const searchInput = container.querySelector('#timelineRegionSearch');
+        if (searchInput) {
+            searchInput.addEventListener('input', (e) => {
+                const searchTerm = e.target.value.toLowerCase();
+                const allRegionItems = container.querySelectorAll('.region-item');
+
+                allRegionItems.forEach(item => {
+                    const displayName = item.dataset.displayName || '';
+                    const region = item.dataset.region.toLowerCase();
+
+                    if (displayName.includes(searchTerm) || region.includes(searchTerm)) {
+                        item.style.display = 'flex';
+                    } else {
+                        item.style.display = 'none';
+                    }
+                });
+            });
+        }
+    }
+
+    showTimelineServicesForRegion(region, regionChanges, container, date) {
+        const displayName = region === 'Global' ? '🌐 Global Services' : getRegionDisplayName(region);
+
+        // Hide region list and show services
+        container.querySelector('.region-list-container').style.display = 'none';
+        container.querySelector('.services-for-region-nested').style.display = 'block';
+
+        // Render all services with full IP details
+        const servicesHtml = regionChanges.map(change => {
+            return this.renderChangeItemDetailed(change);
+        }).join('');
+
+        const servicesContainer = container.querySelector('#timelineRegionServicesContainer');
+        servicesContainer.innerHTML = `
+            <div class="region-services-header">
+                <h4>Services in ${displayName} - ${date}</h4>
+                <div class="services-stats">
+                    <span class="stat">🔧 ${regionChanges.length} services affected</span>
+                </div>
+            </div>
+            <div class="changes-list">
+                ${servicesHtml}
+            </div>
+        `;
     }
 
     renderChangeItem(change) {

@@ -12,6 +12,13 @@ A completely **FREE** solution using GitHub Actions + GitHub Pages to monitor al
 
 ## ✨ Recent Updates (October 2025)
 
+- **📅 Change History Timeline**: NEW! Complete historical view of all Azure service tag updates with two-level navigation
+  - Visual timeline showing the last 10 change events with detailed statistics
+  - Two-level navigation: Browse by Services or by Regions
+  - Region view includes nested service navigation with full IP details
+  - Persistent history that remains visible even when no new changes occur
+  - Search functionality within each view for quick filtering
+  - Clean, non-redundant interface with consolidated statistics
 - **🎨 Enhanced UI/UX**: Optimized modal spacing for a cleaner, more professional appearance
 - **📋 Improved Copy Functionality**: One-click copy-to-clipboard for IP ranges with visual feedback
 - **🔍 Smart Search**: Search by service name, region, or IP address in change modals
@@ -21,9 +28,16 @@ A completely **FREE** solution using GitHub Actions + GitHub Pages to monitor al
 
 ## 🚀 Features
 
+- **📅 Change History Timeline** - Complete historical view with two-level navigation (Services/Regions)
+  - Visual timeline of last 10 change events with detailed statistics
+  - Browse changes by Azure service or by geographic region
+  - Nested navigation for regions: Select region → View services → See IP details
+  - Search functionality within each view for quick filtering
+  - Persistent history visible even when no new changes detected
+  - "No Changes" markers for monitoring continuity
 - **📊 Interactive Dashboard** - Beautiful charts showing change frequency and trends
 - **🔍 Service Search** - Find any Azure service tag quickly
-- **📈 Historical Data** - Track changes over weeks/months
+- **📈 Historical Data** - Track changes over weeks/months with detailed statistics
 - **🗺️ Regional Analysis** - See which regions have the most changes  
 - **📱 Mobile Friendly** - Responsive design works on all devices
 - **⚡ Auto-Updates** - GitHub Actions runs weekly, no manual intervention
@@ -135,6 +149,22 @@ No additional packages, databases, or external services needed!
 - **Most Active Services Chart**: Paginated list showing services with frequent changes (with yellow 🟡 status for mixed IP changes)
 - **Regional Analysis**: Interactive region selection to view detailed service changes per region
 
+### Change History Timeline
+
+- **Visual Timeline**: Displays the last 10 change events in chronological order (newest first)
+- **Event Statistics**: Each timeline item shows:
+  - Number of services affected
+  - Number of regions impacted
+  - IPs added (green) and removed (red)
+  - Total IP changes
+- **Two-Level Navigation**: Click any timeline event to choose how to browse:
+  - **Browse by Services**: View all services alphabetically with full IP change details and search functionality
+  - **Browse by Regions**: View regions list → Select region → See services with IP details for that region
+- **No Changes Tracking**: Events with no changes are clearly marked, maintaining monitoring continuity
+- **Search Functionality**: Search within service or region views to quickly find specific changes
+- **Back Navigation**: Intuitive back buttons for multi-level navigation (Region List ← Services ← Navigation ← Timeline)
+- **Persistent History**: Historical events remain visible even when current week has no changes
+
 ### Service Search & Discovery
 
 - **Interactive stat cards** - Click on IP Ranges, Changes This Week, or Region Changes to see detailed modals
@@ -156,9 +186,9 @@ No additional packages, databases, or external services needed!
 
 ### Current Limitations
 
-- **Historical trends**: Only tracks week-over-week changes (no long-term charts yet)
+- **Timeline display limit**: Shows last 10 events (pagination planned for future)
 - **Per-service history**: No drill-down into individual service change history across multiple weeks  
-- **Search functionality**: No global search yet (planned for future release)
+- **Comparison views**: No side-by-side comparison of different dates (planned for future release)
 
 ## 🎨 Customization
 
@@ -188,6 +218,29 @@ The project maintains data in two locations:
 - **`data/`**: Legacy mirror for backward compatibility
 
 Both folders contain identical data. The Python script updates both locations to ensure consistency.
+
+#### Change History Manifest
+
+The system uses `docs/data/changes/manifest.json` to track all historical change files:
+
+```json
+{
+  "files": [
+    {
+      "filename": "2025-10-10-changes.json",
+      "date": "2025-10-10",
+      "size": 125678
+    },
+    {
+      "filename": "2025-10-08-changes.json", 
+      "date": "2025-10-08",
+      "size": 98432
+    }
+  ]
+}
+```
+
+The Change History Timeline loads this manifest to display historical events, making it easy to track all past updates without scanning the directory.
 
 ### Add Your Own Services
 
@@ -238,6 +291,12 @@ curl "${BASE_URL}/data/summary.json"
 
 # Latest detected changes
 curl "${BASE_URL}/data/changes/latest-changes.json"
+
+# Change history manifest (list of all historical change files)
+curl "${BASE_URL}/data/changes/manifest.json"
+
+# Specific historical change file (replace date)
+curl "${BASE_URL}/data/changes/2025-10-08-changes.json"
 
 # Historical snapshot (replace date)
 curl "${BASE_URL}/data/history/2025-10-08.json"
