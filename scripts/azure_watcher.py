@@ -182,6 +182,13 @@ def generate_summary_stats(data: Dict, changes: List[Dict]) -> Dict:
         reverse=True
     )[:10]
     
+    # Get list of available historical dates
+    history_dir = 'docs/data/history'
+    available_dates = []
+    if os.path.exists(history_dir):
+        history_files = sorted([f for f in os.listdir(history_dir) if f.endswith('.json')])
+        available_dates = [f.replace('.json', '') for f in history_files]
+    
     return {
         'last_updated': datetime.now(timezone.utc).isoformat(),
         'total_services': total_services,
@@ -194,7 +201,8 @@ def generate_summary_stats(data: Dict, changes: List[Dict]) -> Dict:
         'top_active_services': [
             {'service': service, 'change_count': count}
             for service, count in top_active_services
-        ]
+        ],
+        'available_dates': available_dates
     }
 
 def save_data_files(data: Dict, changes: List[Dict], summary: Dict):
