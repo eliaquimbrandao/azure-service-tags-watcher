@@ -1,20 +1,25 @@
 {
-    "generated": "2025-10-10T17:44:00.000000+00:00",
-    "total_files": 2,
-    "date_range": {
-        "oldest": "2025-10-08",
-        "newest": "2025-10-10"
+  "generated": "2025-10-17T18:20:41.882164+00:00",
+  "total_files": 3,
+  "date_range": {
+    "oldest": "2025-10-08",
+    "newest": "2025-10-17"
+  },
+  "files": [
+    {
+      "date": "2025-10-17",
+      "filename": "2025-10-17-changes.json",
+      "size": 45708
     },
-    "files": [
-        {
-            "date": "2025-10-10",
-            "filename": "2025-10-10-changes.json",
-            "size": 21562
-        },
-        {
-            "date": "2025-10-08",
-            "filename": "2025-10-08-changes.json",
-            "size": 21280
-        }
-    ]
+    {
+      "date": "2025-10-10",
+      "filename": "2025-10-10-changes.json",
+      "size": 52438
+    },
+    {
+      "date": "2025-10-08",
+      "filename": "2025-10-08-changes.json",
+      "size": 566962
+    }
+  ]
 }
