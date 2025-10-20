@@ -1,93 +1,17 @@
 {
-  "last_updated": "2025-10-17T18:20:41.741690+00:00",
+  "last_updated": "2025-10-20T07:11:14.177149+00:00",
   "total_services": 3039,
   "total_ip_ranges": 93311,
-  "changes_this_week": 111,
-  "ip_changes": 111,
+  "changes_this_week": 0,
+  "ip_changes": 0,
   "service_additions": 0,
   "service_removals": 0,
-  "regional_changes": {
-    "": 60,
-    "centraluseuap": 2,
-    "germanywc": 2,
-    "northcentralus": 3,
-    "southafricanorth": 2,
-    "southeastus3": 2,
-    "australiaeast": 2,
-    "eastus2": 2,
-    "japaneast": 2,
-    "northeurope": 3,
-    "ukwest": 2,
-    "westcentralus": 1,
-    "westeurope": 3,
-    "westus": 3,
-    "eastus": 2,
-    "australiasoutheast": 1,
-    "austriaeast": 1,
-    "brazilsouth": 1,
-    "brazilse": 1,
-    "canadacentral": 1,
-    "centralus": 1,
-    "eastasia": 1,
-    "centralfrance": 1,
-    "malaysiawest": 1,
-    "polandcentral": 1,
-    "qatarcentral": 1,
-    "southcentralus2": 1,
-    "southcentralus": 1,
-    "swedencentral": 1,
-    "taiwannorth": 1,
-    "taiwannorthwest": 1,
-    "uaenorth": 1,
-    "uksouth": 1,
-    "westus2": 1,
-    "westus3": 1
-  },
-  "top_active_services": [
-    {
-      "service": "AzureCloud",
-      "change_count": 205
-    },
-    {
-      "service": "AzureCloud.westus2",
-      "change_count": 26
-    },
-    {
-      "service": "PowerPlatformPlex",
-      "change_count": 17
-    },
-    {
-      "service": "PowerBI",
-      "change_count": 15
-    },
-    {
-      "service": "AzureCloud.eastus2",
-      "change_count": 15
-    },
-    {
-      "service": "AzureCloud.centralus",
-      "change_count": 14
-    },
-    {
-      "service": "AzureCloud.eastus",
-      "change_count": 12
-    },
-    {
-      "service": "AzureCloud.polandcentral",
-      "change_count": 10
-    },
-    {
-      "service": "AzureCloud.westus3",
-      "change_count": 10
-    },
-    {
-      "service": "AzureCloud.southcentralus2",
-      "change_count": 9
-    }
-  ],
+  "regional_changes": {},
+  "top_active_services": [],
   "available_dates": [
     "2025-10-08",
     "2025-10-10",
-    "2025-10-13"
+    "2025-10-13",
+    "2025-10-17"
   ]
 }
