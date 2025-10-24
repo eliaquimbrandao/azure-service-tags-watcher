@@ -1,0 +1,178 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Analytics Dashboard - Azure Service Tags & IP Ranges Watcher</title>
+    <meta name="description"
+        content="Visual analytics and charts for Azure Service Tags and IP Ranges. Explore trends, regional hotspots, and service activity.">
+    <meta name="keywords"
+        content="azure, analytics, charts, service tags, ip ranges, data visualization, azure monitoring, trends">
+    <link rel="icon"
+        href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>☁️</text></svg>">
+    <link rel="stylesheet" href="css/style.css">
+    <link rel="stylesheet" href="css/navigation.css">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/date-fns/1.30.1/date_fns.min.js"></script>
+</head>
+
+<body>
+    <!-- Main Navigation (top sticky bar for sub-pages) -->
+    <nav class="main-nav">
+        <div class="nav-container">
+            <a href="index.html" class="nav-brand">Azure IP Ranges & Service Tags — Watcher Eye</a>
+            <div class="nav-links">
+                <a href="index.html" class="nav-link">🏠 Home</a>
+                <a href="history.html" class="nav-link">📅 Change History</a>
+                <a href="analytics.html" class="nav-link active">📊 Analytics</a>
+            </div>
+        </div>
+    </nav>
+
+    <!-- Sticky Page Name (shows on scroll) -->
+    <div class="sticky-page-name" id="stickyPageName">
+        Analytics Dashboard
+    </div>
+
+    <main class="main-content page-content">
+        <div class="container">
+            <!-- Page Header -->
+            <header class="page-header">
+                <h1>📊 Analytics Dashboard</h1>
+                <p class="page-subtitle">Visual insights into Azure Service Tags and IP Ranges trends</p>
+            </header>
+
+            <!-- Loading State -->
+            <div id="loadingState" class="loading">
+                <div class="spinner"></div>
+                <p>Loading analytics data...</p>
+            </div>
+
+            <!-- Error State -->
+            <div id="errorState" class="error hidden">
+                <h3>⚠️ Unable to load data</h3>
+                <p>Please try refreshing the page or check back later.</p>
+            </div>
+
+            <!-- Dashboard Content -->
+            <div id="dashboard" class="dashboard hidden">
+                <!-- Analytics Section -->
+                <section class="analytics-section">
+                    <!-- Weekly Change Activity (Full Width) -->
+                    <article class="chart-card full-width">
+                        <div class="chart-header">
+                            <h3>🔄 Weekly Change Activity</h3>
+                            <p>IP changes per week (Added vs Removed)</p>
+                        </div>
+                        <div class="chart-container">
+                            <canvas id="weeklyActivityChart"></canvas>
+                        </div>
+                        <div class="chart-footer">
+                            <span class="chart-hint">💡 Green = Added IPs, Red = Removed IPs</span>
+                        </div>
+                    </article>
+
+                    <div class="charts-grid">
+                        <!-- Most Active Services -->
+                        <article class="chart-card">
+                            <div class="chart-header">
+                                <h3>🏆 Most Active Services</h3>
+                                <p>Based on historical activity (frequency and magnitude of IP changes)</p>
+                            </div>
+                            <div class="chart-container">
+                                <canvas id="activeServicesChart"></canvas>
+                            </div>
+                            <div class="chart-footer">
+                                <span class="chart-hint">💡 Ranked by change frequency and total IP impact across all
+                                    tracked weeks</span>
+                            </div>
+                        </article>
+
+                        <!-- Regional Activity -->
+                        <article class="chart-card">
+                            <div class="chart-header">
+                                <h3>🌍 Regional Activity Distribution</h3>
+                                <p>Change distribution across Azure regions</p>
+                            </div>
+                            <div class="chart-container">
+                                <canvas id="regionalChart"></canvas>
+                            </div>
+                            <div class="chart-footer">
+                                <span class="chart-hint">💡 Click on regions to see detailed changes</span>
+                            </div>
+                        </article>
+                    </div>
+
+                    <!-- Microsoft Update Timeline -->
+                    <article class="chart-card full-width">
+                        <div class="chart-header">
+                            <h3>📅 Microsoft Update Timeline</h3>
+                            <p>Tracking Microsoft's Azure Service Tags releases and our collection timeline</p>
+                        </div>
+                        <div class="chart-container">
+                            <canvas id="updateTimelineChart"></canvas>
+                        </div>
+                        <div class="chart-footer">
+                            <span class="chart-hint">💡 Green = Baseline start | Blue = Microsoft publishes update | Red
+                                = Data collected by our system</span>
+                        </div>
+                    </article>
+
+                    <!-- AzureCloud Regional Infrastructure Chart -->
+                    <article class="chart-card full-width">
+                        <div class="chart-header">
+                            <h3>🌍 Top 10 Most Affected AzureCloud Regions</h3>
+                            <p>Azure global infrastructure regions with the most IP range changes</p>
+                        </div>
+                        <div class="chart-container">
+                            <canvas id="serviceTrendsChart"></canvas>
+                        </div>
+                        <div class="chart-footer">
+                            <span class="chart-hint">💡 Shows which Azure regional infrastructure zones had the most IP
+                                address changes. Numbers represent total IPs added and removed across all tracked
+                                weeks.</span>
+                        </div>
+                    </article>
+
+                    <!-- Update Frequency Info -->
+                    <div class="analytics-info">
+                        <div class="info-card">
+                            <h4>⏰ Update Frequency</h4>
+                            <p>Charts are automatically updated every Monday at 00:00 UTC (midnight) with the latest
+                                Azure Service Tags data</p>
+                        </div>
+                    </div>
+                </section>
+            </div>
+        </div>
+    </main>
+
+    <!-- Footer -->
+    <footer class="footer">
+        <div class="footer-content">
+            <div class="footer-section">
+                <h4>Data Source</h4>
+                <p><a href="https://www.microsoft.com/en-us/download/details.aspx?id=56519" target="_blank"
+                        rel="noopener noreferrer">Microsoft Azure IP Ranges</a></p>
+            </div>
+            <div class="footer-section">
+                <h4>Automation</h4>
+                <p>Updated weekly via GitHub Actions</p>
+            </div>
+            <div class="footer-section">
+                <h4>Open Source</h4>
+                <p><a href="https://github.com/eliaquimbrandao/azure-service-tags-watcher" target="_blank"
+                        rel="noopener noreferrer">View Source Code</a></p>
+            </div>
+        </div>
+        <div class="footer-bottom">
+            <p>&copy; 2025 Azure Service Tags & IP Ranges Watcher | Built with ❤️ for the Azure community</p>
+        </div>
+    </footer>
+
+    <script src="js/dashboard.js"></script>
+    <script src="js/scroll-handler.js"></script>
+</body>
+
+</html>

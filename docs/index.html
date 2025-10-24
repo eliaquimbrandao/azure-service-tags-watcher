@@ -4,11 +4,15 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Azure Service Tags Watcher - Weekly IP Range Monitoring</title>
+    <title>Azure Service Tags & IP Ranges Watcher - Weekly Monitoring</title>
     <meta name="description"
-        content="Monitor changes to Azure Service Tags and IP ranges with automated weekly updates. Free dashboard with historical data and visual analytics.">
-    <meta name="keywords" content="azure, service tags, ip ranges, monitoring, dashboard, github pages">
-    <link rel="stylesheet" href="style.css">
+        content="Weekly monitoring of Microsoft Azure Public Cloud Service Tags and IP Range JSON updates worldwide. Free dashboard with historical data, change tracking, and visual analytics.">
+    <meta name="keywords"
+        content="azure, microsoft azure, public cloud, service tags, ip ranges, ip address ranges, monitoring, dashboard, github pages, json, automation, network security, azure resources">
+    <link rel="icon"
+        href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>☁️</text></svg>">
+    <link rel="stylesheet" href="css/style.css">
+    <link rel="stylesheet" href="css/navigation.css">
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/date-fns/1.30.1/date_fns.min.js"></script>
 </head>
@@ -41,32 +45,63 @@
                 <div class="particle particle-3"></div>
                 <div class="particle particle-4"></div>
                 <div class="particle particle-5"></div>
+                <div class="particle particle-6"></div>
+                <div class="particle particle-7"></div>
+                <div class="particle particle-8"></div>
+                <div class="particle particle-9"></div>
+                <div class="particle particle-10"></div>
+                <div class="particle particle-11"></div>
+                <div class="particle particle-12"></div>
+                <div class="particle particle-13"></div>
+                <div class="particle particle-14"></div>
+                <div class="particle particle-15"></div>
+                <div class="particle particle-16"></div>
+                <div class="particle particle-17"></div>
+                <div class="particle particle-18"></div>
+                <div class="particle particle-19"></div>
+                <div class="particle particle-20"></div>
+                <div class="particle particle-21"></div>
+                <div class="particle particle-22"></div>
+                <div class="particle particle-23"></div>
+                <div class="particle particle-24"></div>
+                <div class="particle particle-25"></div>
+                <svg class="network-connections" width="100%" height="100%">
+                    <line class="connection connection-1" x1="0" y1="0" x2="100" y2="100" />
+                    <line class="connection connection-2" x1="0" y1="0" x2="100" y2="100" />
+                    <line class="connection connection-3" x1="0" y1="0" x2="100" y2="100" />
+                    <line class="connection connection-4" x1="0" y1="0" x2="100" y2="100" />
+                    <line class="connection connection-5" x1="0" y1="0" x2="100" y2="100" />
+                    <line class="connection connection-6" x1="0" y1="0" x2="100" y2="100" />
+                    <line class="connection connection-7" x1="0" y1="0" x2="100" y2="100" />
+                    <line class="connection connection-8" x1="0" y1="0" x2="100" y2="100" />
+                    <line class="connection connection-9" x1="0" y1="0" x2="100" y2="100" />
+                    <line class="connection connection-10" x1="0" y1="0" x2="100" y2="100" />
+                </svg>
             </div>
         </div>
         <div class="hero-content">
             <div class="brand-title">
                 <h1>
-                    <span class="brand-text">Azure Service Tags Watcher</span>
+                    <span class="brand-text">Azure IP Ranges & Service Tags — Watcher Eye</span>
                 </h1>
-                <p class="hero-subtitle">Weekly monitoring of Azure Service Tags and IP range changes across the globe
-                </p>
-            </div>
-            <div class="hero-stats">
-                <div class="hero-stat">
-                    <span class="stat-number" id="heroTotalRanges">...</span>
-                    <span class="stat-label">IP Ranges</span>
-                </div>
-                <div class="hero-stat">
-                    <span class="stat-number" id="heroRegions">...</span>
-                    <span class="stat-label">Regions</span>
-                </div>
+                <p class="hero-subtitle">Continuous monitoring of Microsoft Azure Public Cloud IP range and Service Tag
+                    updates worldwide.</p>
             </div>
             <div class="last-updated">
                 <span class="update-icon">🕐</span>
                 Last updated: <span id="lastUpdated">Loading...</span>
             </div>
+            <div class="hero-navigation">
+                <a href="history.html" class="hero-nav-link">📅 Change History</a>
+                <a href="analytics.html" class="hero-nav-link">📊 Analytics Dashboard</a>
+            </div>
         </div>
     </header>
+
+    <!-- Sticky Page Name (shows on scroll) -->
+    <div class="sticky-page-name" id="stickyPageName">
+        Azure IP Ranges & Service Tags — Watcher Eye
+    </div>
 
     <main class="main-content">
         <div class="container">
@@ -143,48 +178,13 @@
                     </div>
                 </section>
 
-                <!-- Analytics Dashboard -->
-                <section class="analytics-section">
-                    <header class="section-header">
-                        <h2>📊 Analytics Dashboard</h2>
-                    </header>
-                    <div class="charts-grid">
-                        <article class="chart-container">
-                            <div class="chart-header">
-                                <h3>📈 Most Active Services</h3>
-                                <span class="chart-hint">👆 Click any service for details</span>
-                            </div>
-                            <canvas id="activeServicesChart" role="img"
-                                aria-label="Chart showing most active Azure services"></canvas>
-                        </article>
-                        <article class="chart-container">
-                            <div class="chart-header">
-                                <h3>🌍 Regional Hotspots</h3>
-                                <span class="chart-hint">👆 Click any region for details</span>
-                            </div>
-                            <canvas id="regionalChart" role="img"
-                                aria-label="Geographic regions with significant changes"></canvas>
-                        </article>
-                    </div>
-                </section>
-
-                <!-- Change History Timeline -->
-                <section class="timeline-section">
-                    <header class="section-header">
-                        <h2>📅 Change History Timeline</h2>
-                        <p>Track when Azure service tag updates occurred</p>
-                    </header>
-                    <div id="changeHistoryTimeline" class="timeline-container" role="region"
-                        aria-label="Change History Timeline">
-                        <!-- Timeline will be populated by JavaScript -->
-                    </div>
-                </section>
-
-                <!-- Change History -->
+                <!-- Recent Changes Summary -->
                 <section class="changes-section">
                     <header class="section-header">
                         <h2>🔄 Recent Changes</h2>
-                        <p>Latest updates to Azure service tags and IP ranges</p>
+                        <p>Latest updates to Azure service tags and IP ranges
+                            <a href="history.html" class="inline-link">View Full History →</a>
+                        </p>
                     </header>
                     <div id="recentChanges" class="changes-container" role="region" aria-label="Recent Changes">
                         <!-- Changes will be populated by JavaScript -->
@@ -234,11 +234,12 @@
             </div>
         </div>
         <div class="footer-bottom">
-            <p>&copy; 2025 Azure Service Tags Watcher | Built with ❤️ for the Azure community</p>
+            <p>&copy; 2025 Azure Service Tags & IP Ranges Watcher | Built with ❤️ for the Azure community</p>
         </div>
     </footer>
 
-    <script src="dashboard.js"></script>
+    <script src="js/dashboard.js"></script>
+    <script src="js/scroll-handler.js"></script>
 </body>
 
 </html>

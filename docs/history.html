@@ -1,0 +1,235 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Change History - Azure Service Tags & IP Ranges Watcher</title>
+    <meta name="description"
+        content="Complete timeline of Azure Service Tags and IP Ranges changes. Browse historical updates to Microsoft Azure Public Cloud services.">
+    <meta name="keywords"
+        content="azure, service tags, ip ranges, change history, timeline, azure updates, microsoft azure, cloud monitoring">
+    <link rel="icon"
+        href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>☁️</text></svg>">
+    <link rel="stylesheet" href="css/style.css">
+    <link rel="stylesheet" href="css/navigation.css">
+    <link rel="stylesheet" href="css/history-controls.css">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/date-fns/1.30.1/date_fns.min.js"></script>
+</head>
+
+<body>
+    <!-- Main Navigation (top sticky bar for sub-pages) -->
+    <nav class="main-nav">
+        <div class="nav-container">
+            <a href="index.html" class="nav-brand">Azure IP Ranges & Service Tags — Watcher Eye</a>
+            <div class="nav-links">
+                <a href="index.html" class="nav-link">🏠 Home</a>
+                <a href="history.html" class="nav-link active">📅 Change History</a>
+                <a href="analytics.html" class="nav-link">📊 Analytics</a>
+            </div>
+        </div>
+    </nav>
+
+    <!-- Sticky Page Name (shows on scroll) -->
+    <div class="sticky-page-name" id="stickyPageName">
+        Change History
+    </div>
+
+    <main class="main-content page-content">
+        <div class="container">
+            <!-- Page Header -->
+            <header class="page-header">
+                <h1>📅 Change History Timeline</h1>
+                <p class="page-subtitle">Complete timeline of Azure Service Tags and IP Ranges updates</p>
+            </header>
+
+            <!-- Loading State -->
+            <div id="loadingState" class="loading">
+                <div class="spinner"></div>
+                <p>Loading change history...</p>
+            </div>
+
+            <!-- Error State -->
+            <div id="errorState" class="error hidden">
+                <h3>⚠️ Unable to load data</h3>
+                <p>Please try refreshing the page or check back later.</p>
+            </div>
+
+            <!-- Dashboard Content -->
+            <div id="dashboard" class="dashboard hidden">
+
+                <!-- Filters and Actions Bar -->
+                <section class="history-controls">
+                    <div class="controls-row">
+                        <!-- Search Box -->
+                        <div class="control-group search-group">
+                            <label for="historySearch">🔍 Search</label>
+                            <input type="text" id="historySearch" class="history-search-input"
+                                placeholder="Search by service name, region, or date..."
+                                onkeyup="dashboard.filterHistory()">
+                        </div>
+
+                        <!-- Region Filter -->
+                        <div class="control-group">
+                            <label for="regionFilter">🌍 Region</label>
+                            <select id="regionFilter" class="filter-select" onchange="dashboard.filterHistory()">
+                                <option value="">All Regions</option>
+                            </select>
+                        </div>
+
+                        <!-- Date Range Filter -->
+                        <div class="control-group">
+                            <label for="dateRangeFilter">📅 Date Range</label>
+                            <select id="dateRangeFilter" class="filter-select" onchange="dashboard.filterHistory()">
+                                <option value="all">All Time</option>
+                            </select>
+                        </div>
+                    </div>
+
+                    <div class="controls-row action-row">
+                        <!-- Comparison Mode -->
+                        <button id="compareBtn" class="btn btn-secondary" onclick="dashboard.toggleCompareMode()">
+                            📊 Compare Weeks
+                        </button>
+
+                        <!-- Week Selector Dropdown -->
+                        <div class="dropdown-container">
+                            <button class="btn btn-secondary dropdown-toggle"
+                                onclick="dashboard.toggleWeekSelector(event)">
+                                📅 Select Weeks (0)
+                                <span class="dropdown-arrow">▼</span>
+                            </button>
+                            <div id="weekSelector" class="dropdown-menu week-selector-menu">
+                                <div class="dropdown-header">
+                                    Select Weeks to Export
+                                    <button class="select-all-btn" onclick="dashboard.selectAllWeeks()">Select
+                                        All</button>
+                                    <button class="clear-all-btn" onclick="dashboard.clearAllWeeks()">Clear</button>
+                                </div>
+                                <div id="weekCheckboxList" class="week-checkbox-list">
+                                    <!-- Populated dynamically -->
+                                </div>
+                                <div class="dropdown-footer">
+                                    <button class="done-btn" onclick="dashboard.closeWeekSelector()">✓ Done</button>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Export Options Dropdown -->
+                        <div class="dropdown-container">
+                            <button class="btn btn-secondary dropdown-toggle"
+                                onclick="dashboard.toggleExportDropdown(event)">
+                                📥 Export Data
+                                <span class="dropdown-arrow">▼</span>
+                            </button>
+                            <div id="exportDropdown" class="dropdown-menu">
+                                <div class="dropdown-header">Export Options</div>
+                                <button id="exportFilteredOption" class="dropdown-item"
+                                    onclick="dashboard.exportFilteredJSON()">
+                                    <span class="dropdown-icon">🔍</span>
+                                    <div class="dropdown-text">
+                                        <strong>Export Filtered Data (JSON)</strong>
+                                        <small>Apply a search or region filter first to use this option</small>
+                                    </div>
+                                </button>
+                                <button id="exportSelectedJSON" class="dropdown-item"
+                                    onclick="dashboard.exportSelectedWeeksJSON()">
+                                    <span class="dropdown-icon">📦</span>
+                                    <div class="dropdown-text">
+                                        <strong>Export Selected Weeks (JSON)</strong>
+                                        <small>Use "Select Weeks" to choose specific weeks first</small>
+                                    </div>
+                                </button>
+                                <button id="exportSelectedCSV" class="dropdown-item"
+                                    onclick="dashboard.exportSelectedWeeksCSV()">
+                                    <span class="dropdown-icon">📊</span>
+                                    <div class="dropdown-text">
+                                        <strong>Export Selected Weeks (CSV)</strong>
+                                        <small>Use "Select Weeks" to choose specific weeks first</small>
+                                    </div>
+                                </button>
+                                <button id="exportCSVOption" class="dropdown-item" onclick="dashboard.exportAsCSV()">
+                                    <span class="dropdown-icon">📄</span>
+                                    <div class="dropdown-text">
+                                        <strong>Export Filtered Data (CSV)</strong>
+                                        <small>Apply a search or region filter first to use this option</small>
+                                    </div>
+                                </button>
+                            </div>
+                        </div>
+
+                        <!-- Reset Filters -->
+                        <button class="btn btn-link" onclick="dashboard.resetFilters()">
+                            🔄 Reset Filters
+                        </button>
+                    </div>
+
+                    <!-- Results Counter -->
+                    <div class="results-info">
+                        <span id="resultsCount">Showing all history</span>
+                    </div>
+                </section>
+
+                <!-- Change History Timeline -->
+                <section class="timeline-section">
+                    <div id="changeHistoryTimeline" class="timeline-container">
+                        <!-- Timeline will be populated by JavaScript -->
+                    </div>
+                    <div class="timeline-footer">
+                        <button id="loadMoreTimeline" class="btn btn-secondary">Load More History</button>
+                    </div>
+                </section>
+            </div>
+
+            <!-- Service Details Modal -->
+            <div id="serviceModal" class="modal hidden">
+                <div class="modal-content">
+                    <div class="modal-header">
+                        <h3 id="modalServiceName">Service Details</h3>
+                        <button id="closeModal" class="close-btn">&times;</button>
+                    </div>
+                    <div class="modal-body">
+                        <div class="service-info">
+                            <p><strong>Region:</strong> <span id="modalRegion">-</span></p>
+                            <p><strong>System Service:</strong> <span id="modalSystemService">-</span></p>
+                            <p><strong>IP Ranges:</strong> <span id="modalIPCount">-</span></p>
+                        </div>
+                        <div class="ip-ranges">
+                            <h4>Current IP Ranges:</h4>
+                            <div id="modalIPRanges" class="ip-list"></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <!-- Footer -->
+    <footer class="footer">
+        <div class="footer-content">
+            <div class="footer-section">
+                <h4>Data Source</h4>
+                <p><a href="https://www.microsoft.com/en-us/download/details.aspx?id=56519" target="_blank"
+                        rel="noopener noreferrer">Microsoft Azure IP Ranges</a></p>
+            </div>
+            <div class="footer-section">
+                <h4>Automation</h4>
+                <p>Updated weekly via GitHub Actions</p>
+            </div>
+            <div class="footer-section">
+                <h4>Open Source</h4>
+                <p><a href="https://github.com/eliaquimbrandao/azure-service-tags-watcher" target="_blank"
+                        rel="noopener noreferrer">View Source Code</a></p>
+            </div>
+        </div>
+        <div class="footer-bottom">
+            <p>&copy; 2025 Azure Service Tags & IP Ranges Watcher | Built with ❤️ for the Azure community</p>
+        </div>
+    </footer>
+
+    <script src="js/dashboard.js"></script>
+    <script src="js/scroll-handler.js"></script>
+</body>
+
+</html>

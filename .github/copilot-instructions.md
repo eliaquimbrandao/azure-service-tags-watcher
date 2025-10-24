@@ -1,4 +1,4 @@
-# Azure Service Tags Watcher - AI Coding Agent Guide
+# Azure Service Tags & IP Ranges Watcher - AI Coding Agent Guide
 
 ## Architecture Overview
 

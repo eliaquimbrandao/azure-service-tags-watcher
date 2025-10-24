@@ -34,8 +34,9 @@ MAX_RETRIES = 3
 RETRY_DELAY = 2
 USER_AGENT = "Azure-Service-Tags-Watcher/1.0"
 
-def download_latest_json() -> Dict:
-    """Download the latest Azure Service Tags JSON with retry logic."""
+def download_latest_json() -> Tuple[Dict, Dict]:
+    """Download the latest Azure Service Tags JSON with retry logic.
+    Returns: (json_data, metadata) where metadata contains version and published date"""
     session = requests.Session()
     session.headers.update({'User-Agent': USER_AGENT})
     
@@ -44,6 +45,21 @@ def download_latest_json() -> Dict:
             logging.info(f"Downloading metadata page (attempt {attempt + 1}/{MAX_RETRIES})...")
             r = session.get(AZURE_PUBLIC_IP_JSON_URL, timeout=60)
             r.raise_for_status()
+            
+            # Extract metadata from the confirmation page
+            metadata = {}
+            
+            # Extract version (e.g., "2025.10.13")
+            version_match = re.search(r'Version:\s*</strong>\s*([0-9.]+)', r.text)
+            if version_match:
+                metadata['version'] = version_match.group(1)
+                logging.info(f"Found version: {metadata['version']}")
+            
+            # Extract date published (e.g., "10/16/2025")
+            date_match = re.search(r'Date Published:\s*</strong>\s*(\d{1,2}/\d{1,2}/\d{4})', r.text)
+            if date_match:
+                metadata['date_published'] = date_match.group(1)
+                logging.info(f"Found date published: {metadata['date_published']}")
             
             matches = re.findall(r'href="(https?://[^\"]+\.json)"', r.text, flags=re.IGNORECASE)
             if not matches:
@@ -63,7 +79,7 @@ def download_latest_json() -> Dict:
                 raise ValueError("JSON missing 'values' key.")
             
             logging.info(f"Successfully downloaded JSON with {len(data.get('values', []))} tags.")
-            return data
+            return data, metadata
             
         except (requests.RequestException, ValueError, RuntimeError) as e:
             logging.error(f"Attempt {attempt + 1} failed: {e}")
@@ -205,7 +221,7 @@ def generate_summary_stats(data: Dict, changes: List[Dict]) -> Dict:
         'available_dates': available_dates
     }
 
-def save_data_files(data: Dict, changes: List[Dict], summary: Dict):
+def save_data_files(data: Dict, changes: List[Dict], summary: Dict, metadata: Dict):
     """Save all data files for the dashboard."""
     today = datetime.now(timezone.utc).strftime('%Y-%m-%d')
     
@@ -231,7 +247,8 @@ def save_data_files(data: Dict, changes: List[Dict], summary: Dict):
             'date': today,
             'changes': changes,
             'total_changes': len(changes),
-            'generated_at': datetime.now(timezone.utc).isoformat()
+            'generated_at': datetime.now(timezone.utc).isoformat(),
+            'metadata': metadata  # Add metadata (version, date_published)
         }
         
         # Save dated changes file
@@ -334,20 +351,20 @@ def cleanup_old_files(keep_weeks: int = 12):
 def main():
     """Main execution function."""
     # Parse command line arguments
-    parser = argparse.ArgumentParser(description='Azure Service Tags Watcher - Dashboard Data Generator')
+    parser = argparse.ArgumentParser(description='Azure Service Tags & IP Ranges Watcher - Dashboard Data Generator')
     parser.add_argument('--baseline', action='store_true', 
                        help='Setup initial baseline (no changes recorded)')
     args = parser.parse_args()
     
     try:
         if args.baseline:
-            logging.info("=== Azure Service Tags Watcher - Baseline Setup ===")
+            logging.info("=== Azure Service Tags & IP Ranges Watcher - Baseline Setup ===")
             print("🎯 Setting up initial baseline")
         else:
-            logging.info("=== Azure Service Tags Watcher Update ===")
+            logging.info("=== Azure Service Tags & IP Ranges Watcher Update ===")
         
         # Download latest data
-        new_data = download_latest_json()
+        new_data, metadata = download_latest_json()
         
         if args.baseline:
             # For baseline setup, don't load previous data or detect changes
@@ -363,8 +380,8 @@ def main():
         # Generate summary statistics
         summary = generate_summary_stats(new_data, changes)
         
-        # Save all files
-        save_data_files(new_data, changes, summary)
+        # Save all files (including metadata)
+        save_data_files(new_data, changes, summary, metadata)
         
         # Cleanup old files
         cleanup_old_files()

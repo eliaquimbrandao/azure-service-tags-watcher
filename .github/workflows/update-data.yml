@@ -2,10 +2,8 @@ name: Update Azure Service Tags
 
 on:
   schedule:
-    # Runs every Monday at 7:00 AM UTC
-    - cron: "0 7 * * 1"
-    # Runs every Friday at 6:00 PM UTC (end of business day)
-    - cron: "0 18 * * 5"
+    # Runs every Monday at midnight UTC (00:00)
+    - cron: "0 0 * * 1"
 
   # Allow manual triggering
   workflow_dispatch:

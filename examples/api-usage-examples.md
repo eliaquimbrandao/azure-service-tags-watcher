@@ -1,8 +1,8 @@
-# Azure Service Tags API Usage Examples
+# Azure Service Tags & IP Ranges Watcher - API Usage Examples
 
 ## 🎯 Overview
 
-This document shows how to use the Azure Service Tags Watcher as a public API to monitor specific services and detect changes.
+This document shows how to use the Azure Service Tags & IP Ranges Watcher as a public API to monitor specific services and detect changes.
 
 ## 📡 Base URL
 
@@ -13,6 +13,7 @@ https://eliaquimbrandao.github.io/azure-service-tags-watcher
 ## 📁 Available API Endpoints
 
 ### Data Endpoints
+
 - **Current Data**: `/data/current.json` - Latest Azure Service Tags snapshot
 - **Summary**: `/data/summary.json` - Statistics and available dates
 - **Historical Snapshots**: `/data/history/YYYY-MM-DD.json` - Daily snapshots
@@ -21,6 +22,7 @@ https://eliaquimbrandao.github.io/azure-service-tags-watcher
 - **Changes Manifest**: `/data/changes/manifest.json` - Index of all change reports
 
 ### Key Fields in Data
+
 ```json
 {
   "changeNumber": "123",
@@ -45,11 +47,13 @@ https://eliaquimbrandao.github.io/azure-service-tags-watcher
 ## ⚠️ Important: Two Detection Methods
 
 ### Method 1: Pre-Computed Change Reports (Fast)
+
 - **Endpoint**: `/data/changes/latest-changes.json` or `/data/changes/YYYY-MM-DD-changes.json`
 - **Pros**: Fast queries, no processing needed
 - **Cons**: Only shows changes detected during script execution, may show "+0/-0" metadata changes
 
 ### Method 2: Historical Snapshot Comparison (Accurate) ⭐ RECOMMENDED
+
 - **Endpoint**: `/data/history/YYYY-MM-DD.json` (compare two snapshots)
 - **Pros**: 100% accurate, compares actual IP lists, catches all real changes
 - **Cons**: Requires fetching and comparing JSON files
@@ -183,6 +187,7 @@ Test-AzureServiceChanges -ServiceName "AzureKeyVault"
 ```
 
 **Example Output:**
+
 ```
 🔍 Checking if 'Storage' had ANY changes in collected history...
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
@@ -332,6 +337,7 @@ if __name__ == "__main__":
 ### Key Concepts for Any Language
 
 **Step 1: Auto-Discover Available Dates**
+
 ```
 GET /data/summary.json
 → Extract: summary.available_dates[] 
@@ -340,6 +346,7 @@ GET /data/summary.json
 ```
 
 **Step 2: Fetch Historical Snapshots**
+
 ```
 For each consecutive date pair (date1, date2):
   GET /data/history/{date1}.json
@@ -347,6 +354,7 @@ For each consecutive date pair (date1, date2):
 ```
 
 **Step 3: Compare IP Address Lists**
+
 ```
 For each service matching your search:
   ips1 = snapshot1.values[].properties.addressPrefixes
@@ -360,6 +368,7 @@ For each service matching your search:
 ```
 
 **Step 4: Display Results**
+
 ```
 Output: Service name, date range, +/- IP counts
 Link to dashboard for detailed IP lists
@@ -380,6 +389,7 @@ const dates = summary.available_dates.sort();
 const added = ips2.filter(ip => !ips1.includes(ip));
 const removed = ips1.filter(ip => !ips2.includes(ip));
 ```
+
 </details>
 
 <details>
@@ -396,6 +406,7 @@ var dates = summary.AvailableDates.OrderBy(d => d);
 var added = ips2.Except(ips1);
 var removed = ips1.Except(ips2);
 ```
+
 </details>
 
 <details>
@@ -416,6 +427,7 @@ for _, ip := range ips2 {
     }
 }
 ```
+
 </details>
 
 <details>
@@ -435,6 +447,7 @@ added.removeAll(ips1);
 List<String> removed = new ArrayList<>(ips1);
 removed.removeAll(ips2);
 ```
+
 </details>
 
 <details>
@@ -454,6 +467,7 @@ dates = summary['available_dates'].sort
 added = ips2 - ips1
 removed = ips1 - ips2
 ```
+
 </details>
 
 ---
@@ -461,6 +475,7 @@ removed = ips1 - ips2
 ## 📋 API Data Structure Reference
 
 ### summary.json
+
 ```json
 {
   "last_updated": "2025-10-14T10:00:00Z",
@@ -473,6 +488,7 @@ removed = ips1 - ips2
 ```
 
 ### history/YYYY-MM-DD.json (Snapshot)
+
 ```json
 {
   "changeNumber": "123",
@@ -494,6 +510,7 @@ removed = ips1 - ips2
 ```
 
 ### changes/manifest.json
+
 ```json
 {
   "files": [
@@ -511,18 +528,22 @@ removed = ips1 - ips2
 ## 🎯 Common Use Cases
 
 ### 1. Monitor Specific Service for Any Changes
+
 **Goal**: Alert if "Storage" service IPs change at all  
 **Method**: Run auto-discovery function weekly, check for changes_found > 0
 
 ### 2. Track Regional Service Changes
+
 **Goal**: Monitor "AzureCloud.eastus" for regional updates  
 **Method**: Search for services containing "eastus", compare all snapshots
 
 ### 3. Security Compliance Monitoring
+
 **Goal**: Validate firewall rules stay current with Azure IP ranges  
 **Method**: Compare latest snapshot with your firewall configuration, alert on diffs
 
 ### 4. Historical Change Analysis
+
 **Goal**: See when "AzureKeyVault" last changed  
 **Method**: Iterate through all date pairs, find most recent change event
 
@@ -541,10 +562,9 @@ removed = ips1 - ips2
 
 ## 🔗 Additional Resources
 
-- **Live Dashboard**: https://eliaquimbrandao.github.io/azure-service-tags-watcher
-- **GitHub Repository**: https://github.com/eliaquimbrandao/azure-service-tags-watcher
+- **Live Dashboard**: <https://eliaquimbrandao.github.io/azure-service-tags-watcher>
+- **GitHub Repository**: <https://github.com/eliaquimbrandao/azure-service-tags-watcher>
 - **Microsoft Documentation**: [Azure Service Tags Overview](https://learn.microsoft.com/azure/virtual-network/service-tags-overview)
-- **Standalone Script**: See `examples/test-service-changes.ps1` for production-ready PowerShell implementation
 
 ---
 
