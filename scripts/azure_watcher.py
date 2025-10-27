@@ -49,17 +49,26 @@ def download_latest_json() -> Tuple[Dict, Dict]:
             # Extract metadata from the confirmation page
             metadata = {}
             
-            # Extract version (e.g., "2025.10.13")
-            version_match = re.search(r'Version:\s*</strong>\s*([0-9.]+)', r.text)
+            # Extract version (e.g., "2025.10.20")
+            # The HTML structure is: <h3 class="h6">Version:</h3><p style="overflow-wrap:break-word">2025.10.20</p>
+            version_match = re.search(r'<h3[^>]*>Version:</h3>\s*<p[^>]*>([0-9.]+)</p>', r.text, re.IGNORECASE)
             if version_match:
                 metadata['version'] = version_match.group(1)
                 logging.info(f"Found version: {metadata['version']}")
+            else:
+                logging.warning("Could not extract version from Microsoft's page")
             
-            # Extract date published (e.g., "10/16/2025")
-            date_match = re.search(r'Date Published:\s*</strong>\s*(\d{1,2}/\d{1,2}/\d{4})', r.text)
+            # Extract date published (e.g., "10/24/2025")
+            # The HTML structure is: <h3 class="h6">Date Published:</h3><p style="overflow-wrap:break-word">10/24/2025</p>
+            date_match = re.search(r'<h3[^>]*>Date Published:</h3>\s*<p[^>]*>(\d{1,2}/\d{1,2}/\d{4})</p>', r.text, re.IGNORECASE)
             if date_match:
                 metadata['date_published'] = date_match.group(1)
                 logging.info(f"Found date published: {metadata['date_published']}")
+            else:
+                logging.warning("Could not extract date published from Microsoft's page")
+            
+            if not metadata:
+                logging.warning("No metadata extracted - Microsoft's page format may have changed")
             
             matches = re.findall(r'href="(https?://[^\"]+\.json)"', r.text, flags=re.IGNORECASE)
             if not matches:
@@ -67,6 +76,22 @@ def download_latest_json() -> Tuple[Dict, Dict]:
             
             json_url = matches[0]
             logging.info(f"Downloading JSON from: {json_url}")
+            
+            # Extract metadata from filename as fallback (e.g., ServiceTags_Public_20251020.json)
+            if not metadata.get('version'):
+                filename_match = re.search(r'ServiceTags_Public_(\d{8})\.json', json_url, re.IGNORECASE)
+                if filename_match:
+                    date_str = filename_match.group(1)  # e.g., "20251020"
+                    # Convert YYYYMMDD to YYYY.MM.DD format for version
+                    version_from_filename = f"{date_str[:4]}.{date_str[4:6]}.{date_str[6:8]}"
+                    metadata['version'] = version_from_filename
+                    logging.info(f"Extracted version from filename: {metadata['version']}")
+                    
+                    # Also convert to MM/DD/YYYY for date_published
+                    date_published_from_filename = f"{date_str[4:6]}/{date_str[6:8]}/{date_str[:4]}"
+                    if not metadata.get('date_published'):
+                        metadata['date_published'] = date_published_from_filename
+                        logging.info(f"Extracted date published from filename: {metadata['date_published']}")
             
             r2 = session.get(json_url, timeout=120)
             r2.raise_for_status()
@@ -262,17 +287,26 @@ def save_data_files(data: Dict, changes: List[Dict], summary: Dict, metadata: Di
             json.dump(changes_data, f, indent=2)
         logging.info("Saved latest-changes.json")
     else:
-        # Save empty changes file
+        # Save empty changes file with metadata
         empty_changes = {
             'date': today,
             'changes': [],
             'total_changes': 0,
             'generated_at': datetime.now(timezone.utc).isoformat(),
+            'metadata': metadata,  # Include metadata even when no changes
             'message': 'No changes detected this week'
         }
+        
+        # Save dated changes file (even if empty, we need it for timeline)
+        changes_file = f'docs/data/changes/{today}-changes.json'
+        with open(changes_file, 'w') as f:
+            json.dump(empty_changes, f, indent=2)
+        logging.info(f"Saved {changes_file} (no changes)")
+        
+        # Save latest changes
         with open('docs/data/changes/latest-changes.json', 'w') as f:
             json.dump(empty_changes, f, indent=2)
-        logging.info("No changes detected - saved empty changes file")
+        logging.info("No changes detected - saved empty changes file with metadata")
     
     # Save summary statistics
     with open('docs/data/summary.json', 'w') as f:

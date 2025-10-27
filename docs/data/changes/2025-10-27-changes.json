@@ -660,5 +660,8 @@
   ],
   "total_changes": 32,
   "generated_at": "2025-10-27T01:20:53.183285+00:00",
-  "metadata": {}
+  "metadata": {
+    "version": "2025.10.20",
+    "date_published": "10/24/2025"
+  }
 }

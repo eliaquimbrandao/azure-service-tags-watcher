@@ -1490,6 +1490,23 @@ body {
     position: relative;
 }
 
+/* Static service rank item (non-clickable) */
+.service-rank-item-static {
+    display: flex;
+    align-items: flex-start;
+    padding: 1rem;
+    background: white;
+    border: 1px solid #e0e0e0;
+    border-radius: 8px;
+    margin-bottom: 0.75rem;
+    transition: all 0.2s ease;
+}
+
+.service-rank-item-static:hover {
+    border-color: #d0d0d0;
+    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.05);
+}
+
 .service-rank-item::after {
     content: '👆';
     position: absolute;
@@ -1528,14 +1545,23 @@ body {
     flex-shrink: 0;
 }
 
+/* Inline rank number for services list */
+.rank-number-inline {
+    font-weight: 700;
+    font-size: 1.15rem;
+    color: #0078d4;
+    margin-right: 0.4rem;
+}
+
 .service-details {
     flex: 1;
 }
 
 .service-details .service-name {
     font-weight: 600;
-    color: #333;
-    margin-bottom: 0.25rem;
+    font-size: 1rem;
+    color: #1a1a1a;
+    margin-bottom: 0.35rem;
     display: flex;
     align-items: center;
     gap: 0.5rem;
@@ -1543,8 +1569,10 @@ body {
 }
 
 .service-details .change-count {
-    color: #666;
-    font-size: 0.85rem;
+    color: #555;
+    font-size: 0.875rem;
+    line-height: 1.5;
+    font-weight: 500;
 }
 
 /* Frequency Badge */
@@ -1560,6 +1588,24 @@ body {
     font-weight: 600;
     box-shadow: 0 2px 4px rgba(255, 107, 107, 0.2);
     animation: pulse 2s ease-in-out infinite;
+}
+
+/* Enhanced activity fire badge styling - vibrant orange/red */
+.frequency-badge.activity-fire {
+    background: linear-gradient(135deg, #ff5722 0%, #ff9800 100%);
+    box-shadow: 0 2px 8px rgba(255, 87, 34, 0.5);
+    margin-left: 0.5rem;
+    font-size: 0.8rem;
+    font-weight: 700;
+    padding: 0.25rem 0.7rem;
+    border: none;
+}
+
+.frequency-badge.activity-fire:hover {
+    background: linear-gradient(135deg, #ff6f3c 0%, #ffab40 100%);
+    box-shadow: 0 4px 16px rgba(255, 87, 34, 0.6);
+    transform: scale(1.08);
+    animation: none; /* Stop pulse on hover for clearer interaction */
 }
 
 @keyframes pulse {

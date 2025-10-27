@@ -422,66 +422,63 @@ class AzureServiceTagsDashboard {
             return;
         }
 
-        // Calculate all active services from changes data with historical context
-        const changes = this.changesData.changes || [];
-        const serviceCounts = {};
-        const serviceIPCounts = {};
-
-        changes.forEach(change => {
-            const serviceName = change.service;
-
-            // Skip AzureCloud tags - they're infrastructure, not services
-            if (serviceName.startsWith('AzureCloud')) {
-                return;
-            }
-
-            if (!serviceCounts[serviceName]) {
-                serviceCounts[serviceName] = 0;
-                serviceIPCounts[serviceName] = { added: 0, removed: 0 };
-            }
-            serviceCounts[serviceName]++;
-
-            // Track IP changes
-            if (change.added_count) {
-                serviceIPCounts[serviceName].added += change.added_count;
-            }
-            if (change.removed_count) {
-                serviceIPCounts[serviceName].removed += change.removed_count;
-            }
-        });
-
-        // Load historical data to calculate true "activity" (services that change frequently over time)
+        // Load historical data to calculate true "activity" across ALL weeks
         this.loadHistoricalActivity().then(historicalActivity => {
-            const allServices = Object.entries(serviceCounts)
-                .map(([service, count]) => {
-                    const ipAdded = serviceIPCounts[service].added;
-                    const ipRemoved = serviceIPCounts[service].removed;
-                    const totalIPChange = ipAdded + ipRemoved;
-
+            // Build services list from ALL historical data, not just current week
+            const allServices = Object.entries(historicalActivity)
+                .map(([service, stats]) => {
                     // Calculate activity score combining:
-                    // 1. Historical frequency (how many weeks this service changed)
-                    // 2. IP impact (total IPs changed this week)
-                    // 3. Change count this week (number of regions affected)
-                    const historicalFrequency = historicalActivity[service] || 0;
-                    const activityScore = (historicalFrequency * 100) + (totalIPChange * 0.1) + (count * 10);
+                    // 1. Historical frequency (how many times this service changed across all weeks)
+                    // 2. Total IP impact (cumulative IPs changed across all weeks)
+                    const changeFrequency = stats.changeCount || 0;
+                    const totalIPChange = stats.totalIPChange || 0;
+                    const activityScore = (changeFrequency * 100) + (totalIPChange * 0.1);
 
                     return {
                         service,
-                        change_count: count,
-                        ip_added: ipAdded,
-                        ip_removed: ipRemoved,
-                        net_ip_change: ipAdded - ipRemoved,
-                        historical_weeks: historicalFrequency,
+                        change_count: changeFrequency,
+                        ip_added: stats.totalIPsAdded || 0,
+                        ip_removed: stats.totalIPsRemoved || 0,
+                        net_ip_change: (stats.totalIPsAdded || 0) - (stats.totalIPsRemoved || 0),
+                        historical_weeks: changeFrequency,
                         activity_score: activityScore
                     };
                 })
                 // Sort by activity score (highest = most active over time)
                 .sort((a, b) => b.activity_score - a.activity_score);
 
+            console.log(`Rendering ${allServices.length} services from historical data`);
             this.renderServicesList(container, allServices);
         }).catch(error => {
             console.error('Error loading historical activity:', error);
-            // Fallback: sort by IP impact if historical data fails
+            
+            // Fallback: use current week data only if historical loading fails
+            const changes = this.changesData.changes || [];
+            const serviceCounts = {};
+            const serviceIPCounts = {};
+
+            changes.forEach(change => {
+                const serviceName = change.service;
+
+                // Skip AzureCloud tags - they're infrastructure, not services
+                if (serviceName.startsWith('AzureCloud')) {
+                    return;
+                }
+
+                if (!serviceCounts[serviceName]) {
+                    serviceCounts[serviceName] = 0;
+                    serviceIPCounts[serviceName] = { added: 0, removed: 0 };
+                }
+                serviceCounts[serviceName]++;
+
+                if (change.added_count) {
+                    serviceIPCounts[serviceName].added += change.added_count;
+                }
+                if (change.removed_count) {
+                    serviceIPCounts[serviceName].removed += change.removed_count;
+                }
+            });
+
             const allServices = Object.entries(serviceCounts)
                 .map(([service, count]) => ({
                     service,
@@ -494,6 +491,7 @@ class AzureServiceTagsDashboard {
                 }))
                 .sort((a, b) => b.activity_score - a.activity_score);
 
+            console.warn('Using fallback: current week data only');
             this.renderServicesList(container, allServices);
         });
     }
@@ -772,39 +770,21 @@ class AzureServiceTagsDashboard {
         const servicesHtml = currentServices.map((service, index) => {
             const actualRank = startIndex + index + 1;
 
-            // Simple display: just show what was added and removed
-            let ipIndicator;
-            if (service.ip_added > 0 && service.ip_removed > 0) {
-                // Mixed changes - show both additions and removals
-                ipIndicator = `🟡 +${service.ip_added.toLocaleString()} IPs added, ${service.ip_removed.toLocaleString()} IPs removed`;
-            } else if (service.ip_added > 0) {
-                // Only additions
-                ipIndicator = `🟢 +${service.ip_added.toLocaleString()} IPs added`;
-            } else if (service.ip_removed > 0) {
-                // Only removals
-                ipIndicator = `🔴 ${service.ip_removed.toLocaleString()} IPs removed`;
-            } else {
-                // No change
-                ipIndicator = '⚪ No IP changes';
-            }
+            // Calculate total IPs changed (added + removed across all weeks)
+            const totalIPsChanged = service.ip_added + service.ip_removed;
 
-            // Add historical frequency indicator
-            const frequencyBadge = service.historical_weeks > 1
-                ? `<span class="frequency-badge" title="Changed in ${service.historical_weeks} of the last weeks">🔥 ${service.historical_weeks}× weeks</span>`
-                : '';
+            // Show frequency with fire badge for visual emphasis and hover effect
+            const activityBadge = `<span class="frequency-badge activity-fire">🔥 ${service.change_count} week${service.change_count !== 1 ? 's' : ''}</span>`;
 
             return `
-                <div class="service-rank-item" 
-                     data-service-name="${service.service.replace(/"/g, '&quot;')}" 
-                     title="Click to view details for ${service.service.replace(/"/g, '&quot;')}">
-                    <div class="rank-number">${actualRank}</div>
+                <div class="service-rank-item-static">
                     <div class="service-details">
                         <div class="service-name">
-                            ${service.service}
-                            ${frequencyBadge}
+                            <span class="rank-number-inline">${actualRank}.</span> ${service.service}
+                            ${activityBadge}
                         </div>
                         <div class="change-count">
-                            ${service.change_count} change${service.change_count !== 1 ? 's' : ''} this week • ${ipIndicator}
+                            ${totalIPsChanged.toLocaleString()} total IP changes across all updates
                         </div>
                     </div>
                 </div>
@@ -835,19 +815,7 @@ class AzureServiceTagsDashboard {
             ${paginationHtml}
         `;
 
-        // Add event delegation for service item clicks
-        const servicesList = container.querySelector('.services-rank-list');
-        if (servicesList) {
-            servicesList.addEventListener('click', (e) => {
-                const serviceItem = e.target.closest('.service-rank-item');
-                if (serviceItem) {
-                    const serviceName = serviceItem.getAttribute('data-service-name');
-                    if (serviceName) {
-                        this.showServiceDetails(serviceName);
-                    }
-                }
-            });
-        }
+        // Remove event listeners - no clicking functionality
     }
 
     generatePageNumbers(currentPage, totalPages, onClickFunction) {
