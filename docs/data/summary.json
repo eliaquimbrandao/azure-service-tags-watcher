@@ -1,17 +1,82 @@
 {
-  "last_updated": "2025-10-20T07:11:14.177149+00:00",
+  "last_updated": "2025-10-27T01:20:53.041534+00:00",
   "total_services": 3039,
-  "total_ip_ranges": 93311,
-  "changes_this_week": 0,
-  "ip_changes": 0,
+  "total_ip_ranges": 93362,
+  "changes_this_week": 32,
+  "ip_changes": 32,
   "service_additions": 0,
   "service_removals": 0,
-  "regional_changes": {},
-  "top_active_services": [],
+  "regional_changes": {
+    "": 3,
+    "austriaeast": 2,
+    "centralus": 2,
+    "eastus": 2,
+    "eastus2": 2,
+    "germanyn": 2,
+    "southcentralus": 2,
+    "westeurope": 2,
+    "westus2": 2,
+    "brazilsouth": 1,
+    "centralindia": 1,
+    "centralfrance": 1,
+    "indonesiacentral": 1,
+    "israelcentral": 1,
+    "italynorth": 1,
+    "northcentralus": 1,
+    "northeurope": 1,
+    "southcentralus2": 1,
+    "southeastus3": 1,
+    "spaincentral": 1,
+    "westus3": 1,
+    "westus": 1
+  },
+  "top_active_services": [
+    {
+      "service": "AzureCloud",
+      "change_count": 140
+    },
+    {
+      "service": "AzureCloud.centralus",
+      "change_count": 18
+    },
+    {
+      "service": "AzureCloud.eastus2",
+      "change_count": 15
+    },
+    {
+      "service": "AzureCloud.israelcentral",
+      "change_count": 13
+    },
+    {
+      "service": "AzureCloud.indonesiacentral",
+      "change_count": 11
+    },
+    {
+      "service": "AzureCloud.southeastus3",
+      "change_count": 11
+    },
+    {
+      "service": "AzureCloud.eastus",
+      "change_count": 10
+    },
+    {
+      "service": "AzureCloud.westus3",
+      "change_count": 10
+    },
+    {
+      "service": "AzureCloud.brazilsouth",
+      "change_count": 7
+    },
+    {
+      "service": "AzureCloud.westeurope",
+      "change_count": 7
+    }
+  ],
   "available_dates": [
     "2025-10-08",
     "2025-10-10",
     "2025-10-13",
-    "2025-10-17"
+    "2025-10-17",
+    "2025-10-20"
   ]
 }

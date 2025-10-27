@@ -1,20 +1,25 @@
 {
-  "generated": "2025-10-20T07:11:14.314177+00:00",
-  "total_files": 3,
+  "generated": "2025-10-27T01:20:53.185339+00:00",
+  "total_files": 4,
   "date_range": {
     "oldest": "2025-10-08",
-    "newest": "2025-10-17"
+    "newest": "2025-10-27"
   },
   "files": [
     {
+      "date": "2025-10-27",
+      "filename": "2025-10-27-changes.json",
+      "size": 16761
+    },
+    {
       "date": "2025-10-17",
       "filename": "2025-10-17-changes.json",
-      "size": 45708
+      "size": 45793
     },
     {
       "date": "2025-10-10",
       "filename": "2025-10-10-changes.json",
-      "size": 52438
+      "size": 52523
     },
     {
       "date": "2025-10-08",
