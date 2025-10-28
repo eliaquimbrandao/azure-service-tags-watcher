@@ -38,7 +38,7 @@ body {
 .hero-section {
     position: relative;
     min-height: 300px;
-    padding: 2rem 1rem;
+    padding: 2rem 1.5rem;
     display: flex;
     align-items: center;
     justify-content: center;
@@ -410,7 +410,7 @@ body {
     z-index: 2;
     text-align: center;
     max-width: 800px;
-    padding: 0 20px;
+    padding: 0 1.25rem;
 }
 
 .brand-title h1 {
@@ -943,6 +943,7 @@ body {
     gap: 1.5rem;
     flex-wrap: wrap;
     margin-top: 1.5rem;
+    padding: 0 1rem;
 }
 
 .search-hint-item {
@@ -959,7 +960,7 @@ body {
     cursor: pointer;
     font-weight: 500;
     transition: all 0.2s ease;
-    margin-left: 0.25rem;
+    margin-left: 0.5rem;
 }
 
 .search-example:hover {
@@ -1685,8 +1686,6 @@ body {
     background: var(--card-bg);
     border-radius: var(--border-radius);
     box-shadow: var(--shadow);
-    max-height: 600px;
-    overflow-y: auto;
 }
 
 .change-item {
@@ -2463,6 +2462,14 @@ body {
 
 /* Responsive Design */
 @media (max-width: 768px) {
+    .hero-content {
+        padding: 0 1.25rem;
+    }
+
+    .container {
+        padding: 2.5rem 1.25rem;
+    }
+
     .stats-grid {
         grid-template-columns: 1fr;
         max-width: 400px;
@@ -2470,6 +2477,7 @@ body {
 
     .hero-stats {
         gap: 2rem;
+        padding: 0 1rem;
     }
 
     .stat-number {
@@ -2478,10 +2486,12 @@ body {
 
     .search-container {
         flex-direction: column;
+        padding: 1.5rem;
     }
 
     .charts-grid {
         grid-template-columns: 1fr;
+        padding: 0 1rem;
     }
 
     .regions-list {
@@ -2511,14 +2521,30 @@ body {
     .brand-title h1 {
         flex-direction: column;
         gap: 0.5rem;
+        font-size: clamp(1.25rem, 5vw, 1.5rem);
+        flex-wrap: wrap;
+    }
+
+    .brand-text {
+        white-space: normal;
+    }
+
+    .hero-content {
+        padding: 0 1rem;
+    }
+
+    .hero-subtitle {
+        font-size: 0.9rem;
+        padding: 0 0.5rem;
     }
 
     .hero-stats {
         gap: 1.5rem;
+        padding: 0 1rem;
     }
 
     .container {
-        padding: 2rem 15px;
+        padding: 2rem 1rem;
     }
 
     .stats-grid {
@@ -2528,6 +2554,14 @@ body {
     .globe-container {
         width: 300px;
         height: 300px;
+    }
+
+    .modal {
+        padding: 0.5rem;
+    }
+
+    .modal-body {
+        padding: 1rem;
     }
 }
 

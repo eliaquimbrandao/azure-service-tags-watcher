@@ -222,6 +222,36 @@
         grid-template-columns: 1fr;
         gap: 1.5rem;
     }
+
+    /* Mobile header padding fix */
+    .sticky-page-name {
+        padding: 0.875rem 1rem;
+        font-size: 1rem;
+    }
+
+    .page-header {
+        margin: 2rem 1rem 1.5rem;
+        padding: 2rem 1.25rem 1.5rem;
+    }
+
+    .page-header h1 {
+        font-size: 1.8rem;
+        margin: 0 0 0.75rem 0;
+    }
+
+    .page-subtitle {
+        font-size: 1rem;
+    }
+
+    .hero-navigation {
+        gap: 1rem;
+        margin-top: 1rem;
+    }
+
+    .hero-nav-link {
+        padding: 0.625rem 1.25rem;
+        font-size: 0.9rem;
+    }
 }
 
 /* Page-Specific Styles */
@@ -331,15 +361,33 @@
 }
 
 @media (max-width: 768px) {
+    .analytics-info {
+        grid-template-columns: 1fr;
+    }
+}
+
+/* Mobile optimizations for small phones */
+@media (max-width: 480px) {
+    .page-header {
+        margin: 1.5rem 0.75rem 1rem;
+        padding: 1.5rem 1rem 1rem;
+    }
+
     .page-header h1 {
-        font-size: 1.8rem;
+        font-size: 1.5rem;
     }
 
     .page-subtitle {
-        font-size: 1rem;
+        font-size: 0.9rem;
     }
 
-    .analytics-info {
-        grid-template-columns: 1fr;
+    .sticky-page-name {
+        padding: 0.75rem 0.75rem;
+        font-size: 0.95rem;
+    }
+
+    .hero-nav-link {
+        padding: 0.5rem 1rem;
+        font-size: 0.85rem;
     }
 }
