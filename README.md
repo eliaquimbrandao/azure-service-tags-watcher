@@ -1,4 +1,4 @@
-# Azure IP Ranges & Service Tags — Watcher Eye
+# Azure IP Ranges & Service Tags — Tracker
 
 [![Python](https://img.shields.io/badge/Python-3.11+-3776AB?logo=python&logoColor=white)](https://www.python.org/downloads/)
 [![JavaScript](https://img.shields.io/badge/JavaScript-ES6+-F7DF1E?logo=javascript&logoColor=black)](https://developer.mozilla.org/en-US/docs/Web/JavaScript)
