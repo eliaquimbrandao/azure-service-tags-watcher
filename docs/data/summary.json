@@ -1,19 +1,103 @@
 {
-  "last_updated": "2025-11-03T01:19:20.672349+00:00",
-  "total_services": 3039,
-  "total_ip_ranges": 93362,
-  "changes_this_week": 0,
-  "ip_changes": 0,
-  "service_additions": 0,
+  "last_updated": "2025-11-10T01:19:53.355386+00:00",
+  "total_services": 3041,
+  "total_ip_ranges": 95823,
+  "changes_this_week": 66,
+  "ip_changes": 64,
+  "service_additions": 2,
   "service_removals": 0,
-  "regional_changes": {},
-  "top_active_services": [],
+  "regional_changes": {
+    "": 6,
+    "australiaeast": 3,
+    "northeurope": 3,
+    "uaecentral": 1,
+    "australiasoutheast": 1,
+    "brazilsouth": 2,
+    "canadacentral": 2,
+    "centralindia": 2,
+    "centralus": 2,
+    "eastasia": 2,
+    "eastus": 2,
+    "eastus2": 2,
+    "centralfrance": 2,
+    "germanywc": 2,
+    "japaneast": 2,
+    "southeastasia": 1,
+    "uksouth": 2,
+    "ukwest": 1,
+    "westcentralus": 2,
+    "westeurope": 2,
+    "westus": 2,
+    "westus2": 2,
+    "westus3": 2,
+    "austriaeast": 1,
+    "canadaeast": 1,
+    "centraluseuap": 1,
+    "chilec": 1,
+    "eastus2euap": 1,
+    "israelcentral": 1,
+    "israelnorthwest": 1,
+    "italynorth": 1,
+    "malaysiasouth": 1,
+    "mexicocentral": 1,
+    "newzealandnorth": 1,
+    "northcentralus": 1,
+    "polandcentral": 1,
+    "qatarcentral": 1,
+    "southcentralus2": 1,
+    "southcentralus": 1,
+    "spaincentral": 1,
+    "swedencentral": 1
+  },
+  "top_active_services": [
+    {
+      "service": "MicrosoftCloudAppSecurity",
+      "change_count": 1135
+    },
+    {
+      "service": "AzureCloud",
+      "change_count": 247
+    },
+    {
+      "service": "MicrosoftCloudAppSecurity.WestUS",
+      "change_count": 150
+    },
+    {
+      "service": "MicrosoftCloudAppSecurity.EastUS",
+      "change_count": 141
+    },
+    {
+      "service": "MicrosoftCloudAppSecurity.WestEurope",
+      "change_count": 140
+    },
+    {
+      "service": "MicrosoftCloudAppSecurity.UKSouth",
+      "change_count": 124
+    },
+    {
+      "service": "MicrosoftCloudAppSecurity.NorthEurope",
+      "change_count": 120
+    },
+    {
+      "service": "MicrosoftCloudAppSecurity.UKWest",
+      "change_count": 91
+    },
+    {
+      "service": "MicrosoftCloudAppSecurity.CentralUS",
+      "change_count": 76
+    },
+    {
+      "service": "MicrosoftCloudAppSecurity.WestUS2",
+      "change_count": 74
+    }
+  ],
   "available_dates": [
     "2025-10-08",
     "2025-10-10",
     "2025-10-13",
     "2025-10-17",
     "2025-10-20",
-    "2025-10-27"
+    "2025-10-27",
+    "2025-11-03"
   ]
 }
