@@ -1632,6 +1632,48 @@ class AzureServiceTagsDashboard {
                 this.weeklyActivityChart.destroy();
             }
 
+            // Custom plugin to draw vertical 'No changes' markers for zero-activity weeks
+            const zeroChangePlugin = {
+                id: 'zeroChangeVerticalMarker',
+                afterDatasetsDraw: (chart) => {
+                    const { ctx, chartArea } = chart;
+                    const meta = chart.getDatasetMeta(0);
+                    if (!meta || !meta.data) return;
+
+                    ctx.save();
+                    ctx.font = '10px system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif';
+                    ctx.fillStyle = 'rgba(148, 163, 184, 0.8)';
+                    ctx.textAlign = 'center';
+
+                    meta.data.forEach((bar, index) => {
+                        const total = (limitedData[index]?.added || 0) + (limitedData[index]?.removed || 0);
+                        if (!bar || total !== 0) return;
+
+                        const x = bar.x;
+                        const midY = (chartArea.top + chartArea.bottom) / 2;
+
+                        // Draw a subtle vertical line as a watermark
+                        ctx.strokeStyle = 'rgba(148, 163, 184, 0.3)';
+                        ctx.lineWidth = 1;
+                        ctx.setLineDash([4, 4]);
+                        ctx.beginPath();
+                        ctx.moveTo(x, chartArea.top + 4);
+                        ctx.lineTo(x, chartArea.bottom - 4);
+                        ctx.stroke();
+                        ctx.setLineDash([]);
+
+                        // Draw rotated 'No changes' text along the line
+                        ctx.save();
+                        ctx.translate(x, midY);
+                        ctx.rotate(-Math.PI / 2);
+                        ctx.fillText('No changes', 0, -6);
+                        ctx.restore();
+                    });
+
+                    ctx.restore();
+                }
+            };
+
             // Create chart
             this.weeklyActivityChart = new Chart(canvas, {
                 type: 'bar',
@@ -1696,7 +1738,8 @@ class AzureServiceTagsDashboard {
                             }
                         }
                     }
-                }
+                },
+                plugins: [zeroChangePlugin]
             });
 
             console.log(`✅ Weekly Activity Chart rendered with ${limitedData.length} weeks (last ${maxWeeksToShow} weeks shown)`);
@@ -1841,23 +1884,34 @@ class AzureServiceTagsDashboard {
                 const totalChanges = Object.values(regionalCounts).reduce((a, b) => a + b, 0);
                 const topRegion = sortedRegions[0];
 
-                // Get last 5 weeks with region statistics
-                const recentWeeks = manifest.files
+                // Get last 5 weeks (excluding baseline) and then keep only those with regional changes
+                const candidateWeeks = manifest.files
                     .filter(f => f.date !== manifest.date_range.oldest)
-                    .sort((a, b) => new Date(b.date) - new Date(a.date))
-                    .slice(0, 5);
+                    .sort((a, b) => new Date(b.date) - new Date(a.date));
 
-                // Build recent activity HTML
+                // Build recent activity HTML from weeks that actually have regional changes
                 let recentActivityHTML = '';
-                for (const weekFile of recentWeeks) {
+                let includedWeeks = 0;
+
+                for (const weekFile of candidateWeeks) {
+                    if (includedWeeks >= 5) break;
+
                     try {
                         const weekResponse = await fetch(`data/changes/${weekFile.filename}`);
                         const weekData = await weekResponse.json();
 
                         const weekRegions = new Set();
                         (weekData.changes || []).forEach(change => {
-                            weekRegions.add(change.region || 'Global');
+                            const region = change.region || 'Global';
+                            if (region) {
+                                weekRegions.add(region);
+                            }
                         });
+
+                        // Skip weeks that ended up with no regions (no regional changes)
+                        if (weekRegions.size === 0) {
+                            continue;
+                        }
 
                         const weekDate = new Date(weekFile.date).toLocaleDateString('en-US', {
                             month: 'short',
@@ -1878,6 +1932,8 @@ class AzureServiceTagsDashboard {
                                 </div>
                             </div>
                         `;
+
+                        includedWeeks += 1;
                     } catch (err) {
                         console.log(`Could not load ${weekFile.filename} for recent activity`);
                     }
@@ -2057,7 +2113,7 @@ class AzureServiceTagsDashboard {
         }
 
         try {
-            // Load manifest to get the last 2 change files
+            // Load manifest to get the recent change files
             const timestamp = new Date().getTime();
             const manifestResponse = await fetch(`./data/changes/manifest.json?t=${timestamp}`);
 
@@ -2088,46 +2144,64 @@ class AzureServiceTagsDashboard {
                 return;
             }
 
-            // Get the last 2 change files
-            const recentFiles = changeFiles.slice(0, 2);
+            // Walk through files from newest to oldest until we collect up to 3
+            const weeksWithChanges = [];
 
-            // Load data for each file
-            const recentChangesData = await Promise.all(
-                recentFiles.map(async (file) => {
-                    const response = await fetch(`./data/changes/${file.filename}?t=${timestamp}`);
-                    if (response.ok) {
-                        const data = await response.json();
-                        return {
-                            date: file.date,
-                            filename: file.filename,
-                            changes: data.changes || [],
-                            metadata: data.metadata || {}
-                        };
-                    }
-                    return null;
-                })
-            );
+            for (const file of changeFiles) {
+                if (weeksWithChanges.length >= 3) break;
+
+                const response = await fetch(`./data/changes/${file.filename}?t=${timestamp}`);
+                if (!response.ok) continue;
+
+                const data = await response.json();
+                const changes = data.changes || [];
+
+                if (!Array.isArray(changes) || changes.length === 0) {
+                    // Keep zero-change weeks only for the full history view, skip them here
+                    continue;
+                }
+
+                weeksWithChanges.push({
+                    date: file.date,
+                    filename: file.filename,
+                    changes,
+                    metadata: data.metadata || {}
+                });
+            }
+
+            // If none of the recent runs had changes, show a friendly message instead
+            if (weeksWithChanges.length === 0) {
+                changesContainer.innerHTML = `
+                    <div class="timeline-container">
+                        <div class="timeline-item">
+                            <div class="timeline-header">
+                                <div class="timeline-date">
+                                    <span class="date-icon">✨</span>
+                                    No Recent Changes
+                                </div>
+                            </div>
+                            <div class="timeline-body">
+                                <p style="text-align: center; color: #6b7280; padding: 1rem;">
+                                    The most recent collection runs did not include any Azure service tag changes.
+                                    You can still browse all historical updates on the full <a href="history.html">Change History</a> page.
+                                </p>
+                            </div>
+                        </div>
+                    </div>
+                `;
+                return;
+            }
 
             // Render each week's changes with timeline wrapper
             const changesHtml = `
                 <div class="timeline-container">
-                    ${recentChangesData
-                    .filter(data => data !== null)
+                    ${weeksWithChanges
                     .map(weekData => this.renderWeekChanges(weekData))
                     .join('')}
                 </div>
             `;
 
-            changesContainer.innerHTML = changesHtml || `
-                <div class="change-item">
-                    <div class="change-header">
-                        <div class="change-service">✨ No Changes</div>
-                    </div>
-                    <div class="change-details">
-                        All Azure service tags remain unchanged.
-                    </div>
-                </div>
-            `;
+            changesContainer.innerHTML = changesHtml;
 
         } catch (error) {
             console.error('Error loading recent changes:', error);
