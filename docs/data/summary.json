@@ -1,13 +1,125 @@
 {
-  "last_updated": "2025-11-17T01:18:03.118366+00:00",
-  "total_services": 3041,
-  "total_ip_ranges": 95823,
-  "changes_this_week": 0,
-  "ip_changes": 0,
-  "service_additions": 0,
+  "last_updated": "2025-11-24T01:21:57.932549+00:00",
+  "total_services": 3057,
+  "total_ip_ranges": 96725,
+  "changes_this_week": 260,
+  "ip_changes": 244,
+  "service_additions": 16,
   "service_removals": 0,
-  "regional_changes": {},
-  "top_active_services": [],
+  "regional_changes": {
+    "": 25,
+    "australiacentral": 2,
+    "australiacentral2": 2,
+    "australiaeast": 3,
+    "australiasoutheast": 4,
+    "brazilsouth": 5,
+    "brazilse": 4,
+    "canadacentral": 6,
+    "canadaeast": 2,
+    "centralindia": 7,
+    "centralus": 4,
+    "centraluseuap": 3,
+    "chilec": 5,
+    "eastasia": 4,
+    "eastus": 8,
+    "eastus2": 7,
+    "eastus2euap": 3,
+    "centralfrance": 3,
+    "southfrance": 2,
+    "germanyn": 2,
+    "germanywc": 3,
+    "israelcentral": 3,
+    "italynorth": 4,
+    "japaneast": 4,
+    "japanwest": 2,
+    "jioindiacentral": 2,
+    "jioindiawest": 2,
+    "koreacentral": 2,
+    "koreasouth": 2,
+    "malaysiasouth": 1,
+    "mexicocentral": 3,
+    "newzealandnorth": 6,
+    "northcentralus": 4,
+    "northeurope": 5,
+    "norwaye": 4,
+    "norwayw": 2,
+    "polandcentral": 4,
+    "southafricanorth": 2,
+    "southafricawest": 2,
+    "southcentralus": 5,
+    "southindia": 3,
+    "southeastasia": 4,
+    "spaincentral": 4,
+    "swedencentral": 3,
+    "swedensouth": 2,
+    "switzerlandn": 3,
+    "switzerlandw": 3,
+    "taiwannorth": 2,
+    "taiwannorthwest": 2,
+    "uaecentral": 2,
+    "uaenorth": 2,
+    "uksouth": 5,
+    "ukwest": 2,
+    "westcentralus": 5,
+    "westeurope": 8,
+    "westindia": 1,
+    "westus": 7,
+    "westus2": 5,
+    "westus3": 4,
+    "austriaeast": 5,
+    "belgiumcentral": 3,
+    "indonesiacentral": 5,
+    "israelnorthwest": 2,
+    "malaysiawest": 4,
+    "southcentralus2": 2,
+    "southeastus": 1,
+    "southeastus3": 2,
+    "qatarcentral": 4,
+    "usstagee": 1,
+    "usstagec": 1
+  },
+  "top_active_services": [
+    {
+      "service": "AzureCloud",
+      "change_count": 331
+    },
+    {
+      "service": "AzureMonitor",
+      "change_count": 132
+    },
+    {
+      "service": "AzureSecurityCenter",
+      "change_count": 72
+    },
+    {
+      "service": "AzureAttestation",
+      "change_count": 58
+    },
+    {
+      "service": "AzureContainerRegistry",
+      "change_count": 48
+    },
+    {
+      "service": "AzurePortal",
+      "change_count": 46
+    },
+    {
+      "service": "PowerQueryOnline",
+      "change_count": 42
+    },
+    {
+      "service": "AzureActiveDirectory.ServiceEndpoint",
+      "change_count": 40
+    },
+    {
+      "service": "AzureCloud.eastus2",
+      "change_count": 25
+    },
+    {
+      "service": "AzureCloud.centralus",
+      "change_count": 17
+    }
+  ],
   "available_dates": [
     "2025-10-08",
     "2025-10-10",
@@ -16,6 +128,7 @@
     "2025-10-20",
     "2025-10-27",
     "2025-11-03",
-    "2025-11-10"
+    "2025-11-10",
+    "2025-11-17"
   ]
 }
